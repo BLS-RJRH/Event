@@ -228,9 +228,7 @@
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">ประเภทผู้รับบริการ *</label>
               <select id="inpType" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-                <option value="นักวิ่ง / นักกีฬา">นักวิ่ง / นักกีฬา</option>
-                <option value="เจ้าหน้าที่งาน (Staff)">เจ้าหน้าที่งาน (Staff)</option>
-                <option value="ประชาชนทั่วไป">ประชาชนทั่วไป</option>
+                <option value="">กำลังโหลดตัวเลือก...</option>
               </select>
             </div>
           </div>
@@ -269,10 +267,7 @@
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">ผลการดูแล (Outcome) *</label>
               <select id="inpOutcome" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-                <option value="ดีขึ้น กลับบ้านได้">ดีขึ้น กลับบ้านได้</option>
-                <option value="นั่งพักสังเกตอาการ">นั่งพักสังเกตอาการ</option>
-                <option value="ส่งต่อโรงพยาบาล (Referral)">ส่งต่อโรงพยาบาล (Referral)</option>
-                <option value="ปฏิเสธการรักษา">ปฏิเสธการรักษา</option>
+                <option value="">กำลังโหลดตัวเลือก...</option>
               </select>
             </div>
             <div>
@@ -605,24 +600,47 @@
       });
     }
 
-    // Render Dropdowns
+    // Render Dropdowns จาก Google Sheets ให้ครบทุกช่อง
     function renderDropdowns() {
       const dd = systemData.dropdowns;
-      // Suggestions
-      const dataList = document.getElementById('complaintSuggestions');
-      dataList.innerHTML = '';
-      dd.complaints.forEach(c => dataList.innerHTML += `<option value="${c}">`);
 
-      // Quick Pills for Inventory
+      // 1. ดึงประเภทผู้รับบริการ (Type)
+      const typeSelect = document.getElementById('inpType');
+      if (typeSelect && dd.types && dd.types.length > 0) {
+        typeSelect.innerHTML = '';
+        dd.types.forEach(t => {
+          typeSelect.innerHTML += `<option value="${t}">${t}</option>`;
+        });
+      }
+
+      // 2. ดึงผลการดูแล (Outcome)
+      const outcomeSelect = document.getElementById('inpOutcome');
+      if (outcomeSelect && dd.outcomes && dd.outcomes.length > 0) {
+        outcomeSelect.innerHTML = '';
+        dd.outcomes.forEach(o => {
+          outcomeSelect.innerHTML += `<option value="${o}">${o}</option>`;
+        });
+      }
+
+      // 3. อาการสำคัญ (Suggestions)
+      const dataList = document.getElementById('complaintSuggestions');
+      if (dataList && dd.complaints) {
+        dataList.innerHTML = '';
+        dd.complaints.forEach(c => dataList.innerHTML += `<option value="${c}">`);
+      }
+
+      // 4. Quick Pills สำหรับ Inventory
       const pillsBox = document.getElementById('quickItemsContainer');
-      pillsBox.innerHTML = '';
-      dd.items.forEach(it => {
-        pillsBox.innerHTML += `
-          <button type="button" onclick="addInventoryItem('${it}', 1)" class="text-xs bg-slate-800 hover:bg-amber-900/60 hover:text-amber-200 border border-slate-600 text-slate-300 px-2 py-1 rounded transition">
-            + ${it}
-          </button>
-        `;
-      });
+      if (pillsBox && dd.items) {
+        pillsBox.innerHTML = '';
+        dd.items.forEach(it => {
+          pillsBox.innerHTML += `
+            <button type="button" onclick="addInventoryItem('${it}', 1)" class="text-xs bg-slate-800 hover:bg-amber-900/60 hover:text-amber-200 border border-slate-600 text-slate-300 px-2 py-1 rounded transition">
+              + ${it}
+            </button>
+          `;
+        });
+      }
     }
 
     // Render Dashboard
