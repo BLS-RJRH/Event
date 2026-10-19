@@ -159,7 +159,7 @@
         </div>
       </div>
 
-      <!-- ตารางประวัติบันทึกเคส (7 คอลัมน์หลัก) -->
+      <!-- ตารางประวัติบันทึกเคส -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl shadow-md overflow-hidden">
         <div class="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -184,12 +184,13 @@
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs text-slate-300">
             <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-700">
-              <tr>
+              <tr id="caseTableHeadRow">
                 <th class="py-3 px-3">รหัสเคส</th>
                 <th class="py-3 px-3">วันที่</th>
                 <th class="py-3 px-3">เวลา</th>
                 <th class="py-3 px-3">อาการสำคัญ</th>
                 <th class="py-3 px-3">การรักษา/ปฐมพยาบาล</th>
+                <!-- คอลัมน์เวชภัณฑ์จะแทรกตรงนี้เฉพาะตอนล็อกอิน PIN -->
                 <th class="py-3 px-3">ผลการดูแล</th>
                 <th class="py-3 px-3">ผู้บันทึก</th>
               </tr>
@@ -468,6 +469,22 @@
       return str;
     }
 
+    // Toggle แสดง/ซ่อน รายการเวชภัณฑ์ในตาราง
+    function toggleInvDetails(recordId) {
+      const box = document.getElementById(`inv-box-${recordId}`);
+      const btn = document.getElementById(`inv-btn-${recordId}`);
+      if (!box || !btn) return;
+      if (box.classList.contains('hidden')) {
+        box.classList.remove('hidden');
+        btn.classList.add('bg-amber-600', 'text-white');
+        btn.classList.remove('bg-amber-950/70', 'text-amber-300');
+      } else {
+        box.classList.add('hidden');
+        btn.classList.remove('bg-amber-600', 'text-white');
+        btn.classList.add('bg-amber-950/70', 'text-amber-300');
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       const savedUser = sessionStorage.getItem('firstAidUser');
       if (savedUser) {
@@ -656,8 +673,11 @@
       }
     }
 
+    // Render Dashboard: ซ่อน/แสดง คอลัมน์เวชภัณฑ์ตามสถานะการล็อกอิน PIN
     function renderDashboard() {
       const cases = systemData.currentCases;
+      const inv = systemData.currentInventory;
+      const isLoggedIn = currentUser.role !== 'public';
 
       document.getElementById('kpiTotalCases').innerText = cases.length;
 
@@ -696,27 +716,78 @@
         }).join('');
       }
 
+      // ปรับแต่งหัวตาราง: แทรกคอลัมน์ "เวชภัณฑ์ที่ใช้" เมื่อล็อกอิน PIN
+      const theadRow = document.getElementById('caseTableHeadRow');
+      if (isLoggedIn) {
+        theadRow.innerHTML = `
+          <th class="py-3 px-3">รหัสเคส</th>
+          <th class="py-3 px-3">วันที่</th>
+          <th class="py-3 px-3">เวลา</th>
+          <th class="py-3 px-3">อาการสำคัญ</th>
+          <th class="py-3 px-3">การรักษา/ปฐมพยาบาล</th>
+          <th class="py-3 px-3">เวชภัณฑ์ที่ใช้</th>
+          <th class="py-3 px-3">ผลการดูแล</th>
+          <th class="py-3 px-3">ผู้บันทึก</th>
+        `;
+      } else {
+        theadRow.innerHTML = `
+          <th class="py-3 px-3">รหัสเคส</th>
+          <th class="py-3 px-3">วันที่</th>
+          <th class="py-3 px-3">เวลา</th>
+          <th class="py-3 px-3">อาการสำคัญ</th>
+          <th class="py-3 px-3">การรักษา/ปฐมพยาบาล</th>
+          <th class="py-3 px-3">ผลการดูแล</th>
+          <th class="py-3 px-3">ผู้บันทึก</th>
+        `;
+      }
+
+      const totalCols = isLoggedIn ? 8 : 7;
       const tbody = document.getElementById('caseTableBody');
       if (cases.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-500">ยังไม่มีข้อมูลเคสในกิจกรรมนี้</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${totalCols}" class="text-center py-6 text-slate-500">ยังไม่มีข้อมูลเคสในกิจกรรมนี้</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = cases.map(c => `
-        <tr class="hover:bg-slate-800/50 transition border-b border-slate-800">
-          <td class="py-2.5 px-3 font-mono font-medium text-emerald-400">${c.record_id}</td>
-          <td class="py-2.5 px-3 font-mono text-slate-300">${formatDisplayDate(c.incident_date)}</td>
-          <td class="py-2.5 px-3 font-mono text-slate-300">${formatDisplayTime(c.incident_time)}</td>
-          <td class="py-2.5 px-3 text-slate-200 font-medium">${c.chief_complaint}</td>
-          <td class="py-2.5 px-3 text-slate-300">${c.treatment}</td>
-          <td class="py-2.5 px-3">
-            <span class="px-2 py-0.5 rounded-full text-[10px] ${c.outcome && c.outcome.includes('ส่งต่อ') ? 'bg-rose-950 border border-rose-800 text-rose-300' : 'bg-emerald-950 border border-emerald-800 text-emerald-300'}">
-              ${c.outcome}
-            </span>
-          </td>
-          <td class="py-2.5 px-3 text-slate-400 text-[11px]">${c.responder_name || '-'}</td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = cases.map(c => {
+        // ส่วนจัดการเวชภัณฑ์แบบปุ่มคลิกพับ-กาง
+        let invTdHtml = '';
+        if (isLoggedIn) {
+          const usedItems = inv.filter(i => i.record_id === c.record_id);
+          if (usedItems.length > 0) {
+            const pills = usedItems.map(i => `<span class="inline-block bg-amber-950/80 border border-amber-800 text-amber-300 px-2 py-0.5 rounded text-[10px] mr-1 mb-1">${i.item_name} <strong>x${i.quantity}</strong></span>`).join('');
+            invTdHtml = `
+              <td class="py-2.5 px-3">
+                <button type="button" id="inv-btn-${c.record_id}" onclick="toggleInvDetails('${c.record_id}')" class="bg-amber-950/70 border border-amber-800 text-amber-300 hover:bg-amber-600 hover:text-white px-2 py-1 rounded text-[11px] font-medium transition flex items-center gap-1 shadow-sm">
+                  <i class="fa-solid fa-pills"></i> ${usedItems.length} รายการ <i class="fa-solid fa-chevron-down text-[9px]"></i>
+                </button>
+                <div id="inv-box-${c.record_id}" class="hidden mt-1.5 p-2 bg-slate-950/90 border border-slate-700/80 rounded-lg shadow-lg z-10 max-w-[220px]">
+                  <div class="text-[10px] font-semibold text-slate-400 mb-1 border-b border-slate-800 pb-0.5">รายการยา/เวชภัณฑ์:</div>
+                  ${pills}
+                </div>
+              </td>
+            `;
+          } else {
+            invTdHtml = `<td class="py-2.5 px-3 text-slate-500">-</td>`;
+          }
+        }
+
+        return `
+          <tr class="hover:bg-slate-800/50 transition border-b border-slate-800">
+            <td class="py-2.5 px-3 font-mono font-medium text-emerald-400">${c.record_id}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300">${formatDisplayDate(c.incident_date)}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300">${formatDisplayTime(c.incident_time)}</td>
+            <td class="py-2.5 px-3 text-slate-200 font-medium">${c.chief_complaint}</td>
+            <td class="py-2.5 px-3 text-slate-300">${c.treatment}</td>
+            ${invTdHtml}
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] ${c.outcome && c.outcome.includes('ส่งต่อ') ? 'bg-rose-950 border border-rose-800 text-rose-300' : 'bg-emerald-950 border border-emerald-800 text-emerald-300'}">
+                ${c.outcome}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-400 text-[11px]">${c.responder_name || '-'}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function exportToExcel() {
@@ -800,7 +871,7 @@
       box.innerHTML = activeInventoryList.map((item, idx) => `
         <div class="flex items-center gap-2">
           <input type="text" value="${item.name}" placeholder="ชื่อเวชภัณฑ์/ยา" onchange="activeInventoryList[${idx}].name = this.value" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
-          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white text-center">
+          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white text-center">
           <button type="button" onclick="removeInvRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       `).join('');
@@ -1036,12 +1107,10 @@
           setVisibility(navTabAdmin, false);
 
         } else if (currentUser.role === 'hod') {
-          // บทบาท HOD (หัวหน้าแผนก)
           roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-indigo-950 text-indigo-300 border-indigo-700';
           roleBadge.innerHTML = '<i class="fa-solid fa-user-tie mr-1"></i> หัวหน้าแผนก (HOD)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-chart-pie text-indigo-400"></i> โหมดบริหาร: ตรวจสอบสถิติภาพรวมและประวัติเคสจริง (Full Access)';
 
-          // HOD ซ่อนแท็บกรอกข้อมูล 2, 3 และแท็บ 4
           setVisibility(navTabFastLog, false);
           setVisibility(navTabInventory, false);
           setVisibility(navTabAdmin, false);
