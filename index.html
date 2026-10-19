@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบบันทึกหน่วยปฐมพยาบาลภาคสนาม (First Aid Station System)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            kanit: ['Kanit', 'sans-serif'],
+            sarabun: ['Sarabun', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Sarabun', sans-serif; }
+    h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- แถบแจ้งเตือน Loading -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+    <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-400 mb-4"></i>
+    <p id="loadingText" class="text-lg font-medium text-slate-200">กำลังติดต่อฐานข้อมูล Google Sheets...</p>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-slate-800/90 border-b border-slate-700 sticky top-0 z-40 backdrop-blur shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-900/40">
+          <i class="fa-solid fa-truck-medical text-white text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            First Aid Station Log
+            <span id="roleBadge" class="text-xs px-2.5 py-0.5 rounded-full font-normal border bg-slate-700 text-slate-300 border-slate-600">
+              <i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400">ระบบบันทึกเวชระเบียนและจัดการเวชภัณฑ์ภาคสนาม</p>
+        </div>
+      </div>
+
+      <!-- แถบเลือก Event และปุ่มล็อกอิน -->
+      <div class="flex items-center flex-wrap gap-2">
+        <div class="bg-slate-950/70 border border-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
+          <i class="fa-regular fa-calendar-check text-emerald-400 text-sm"></i>
+          <span class="text-xs text-slate-400 hidden sm:inline">กิจกรรม:</span>
+          <select id="eventSelect" onchange="changeEvent(this.value)" class="bg-transparent text-sm text-white font-medium focus:outline-none cursor-pointer max-w-[220px] truncate">
+            <option value="" disabled selected>กำลังโหลดกิจกรรม...</option>
+          </select>
+        </div>
+
+        <div id="authContainer">
+          <!-- สลับระหว่างปุ่ม Login และ Badge ผู้ใช้ -->
+          <button id="btnLoginModal" onclick="openLoginModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-3.5 py-1.5 rounded-lg flex items-center gap-2 shadow-md transition">
+            <i class="fa-solid fa-lock"></i> เข้าสู่ระบบ (PIN)
+          </button>
+
+          <div id="userProfileBadge" class="hidden items-center gap-2">
+            <div class="bg-slate-700/80 border border-slate-600 px-3 py-1 rounded-lg text-xs flex items-center gap-2">
+              <i class="fa-solid fa-circle-user text-emerald-400 text-base"></i>
+              <div>
+                <div id="navUserName" class="font-medium text-slate-100">-</div>
+                <div id="navUserRole" class="text-[10px] text-slate-400 uppercase">-</div>
+              </div>
+            </div>
+            <button onclick="handleLogout()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 text-xs px-2.5 py-2 rounded-lg transition" title="ออกจากระบบ">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner แจ้งเตือนเมื่อ Event ปิดรับข้อมูล -->
+  <div id="closedEventBanner" class="bg-rose-950/80 border-b border-rose-700/60 px-4 py-2.5 text-center hidden">
+    <div class="max-w-7xl mx-auto flex items-center justify-center gap-2 text-rose-300 text-sm font-medium">
+      <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+      <span>กิจกรรมนี้สิ้นสุดเกิน 2 วันแล้ว ระบบได้ทำการปิดรับข้อมูลเวชระเบียนถาวร (เปิดอ่านได้อย่างเดียว)</span>
+      <span id="adminBypassBadge" class="hidden ml-2 px-2 py-0.5 rounded text-xs bg-purple-900 border border-purple-500 text-purple-200 font-bold">⚡ Admin Override Activated</span>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="bg-slate-800 border-b border-slate-700/80">
+    <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm">
+      <button onclick="switchTab('tabDashboard')" id="navTabDashboard" class="tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-chart-pie"></i> 1. สรุปสถิติและประวัติเคส
+      </button>
+      <button onclick="switchTab('tabFastLog')" id="navTabFastLog" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap hidden">
+        <i class="fa-solid fa-notes-medical"></i> 2. บันทึกเคสด่วน
+      </button>
+      <button onclick="switchTab('tabInventory')" id="navTabInventory" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap hidden">
+        <i class="fa-solid fa-box-archive"></i> 3. บันทึกเวชภัณฑ์ย้อนหลัง
+      </button>
+      <button onclick="switchTab('tabAdmin')" id="navTabAdmin" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap hidden">
+        <i class="fa-solid fa-gear"></i> 4. จัดการกิจกรรม (Admin)
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+
+    <!-- TAB 1: สรุปสถิติ & ประวัติเคส -->
+    <section id="tabDashboard" class="space-y-6">
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
+          <p class="text-xs text-slate-400">ยอดผู้รับบริการทั้งหมด</p>
+          <div class="flex items-baseline justify-between mt-2">
+            <span id="kpiTotalCases" class="text-3xl font-bold font-heading text-white">0</span>
+            <span class="text-xs text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">เคส</span>
+          </div>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
+          <p class="text-xs text-slate-400">สัดส่วนเพศ (ชาย / หญิง)</p>
+          <div class="flex items-baseline justify-between mt-2">
+            <span id="kpiGender" class="text-xl font-bold font-heading text-white">0 / 0</span>
+            <span class="text-xs text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">คน</span>
+          </div>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
+          <p class="text-xs text-slate-400">ส่งต่อโรงพยาบาล (Refer)</p>
+          <div class="flex items-baseline justify-between mt-2">
+            <span id="kpiRefer" class="text-3xl font-bold font-heading text-rose-400">0</span>
+            <span class="text-xs text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800">ราย</span>
+          </div>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
+          <p class="text-xs text-slate-400">อาการพบบ่อยสูงสุด (Top)</p>
+          <div class="mt-2">
+            <span id="kpiTopComplaint" class="text-sm font-bold font-heading text-amber-400 truncate block">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- สถิติอาการพบบ่อย Top 5 -->
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-md">
+        <h3 class="font-heading font-semibold text-white text-base mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-chart-column text-emerald-400"></i> สถิติกลุ่มอาการสำคัญที่พบบ่อย (Chief Complaints)
+        </h3>
+        <div id="complaintStatsList" class="space-y-3">
+          <p class="text-xs text-slate-400 italic">ไม่มีข้อมูลเคสในกิจกรรมนี้</p>
+        </div>
+      </div>
+
+      <!-- ตารางประวัติบันทึกเคส -->
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl shadow-md overflow-hidden">
+        <div class="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="font-heading font-semibold text-white text-base flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-emerald-400"></i> ทะเบียนเวชระเบียนหน่วยปฐมพยาบาล
+            </h3>
+            <p id="pdpaNoticeText" class="text-xs text-slate-400 mt-0.5">
+              <i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA
+            </p>
+          </div>
+          <button onclick="fetchEventCases()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate"></i> รีเฟรชข้อมูล
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-700">
+              <tr>
+                <th class="py-3 px-3">รหัสเคส</th>
+                <th class="py-3 px-3">เวลา</th>
+                <th class="py-3 px-3">จุดประจำการ</th>
+                <th class="py-3 px-3">ผู้รับบริการ</th>
+                <th class="py-3 px-3">อาการสำคัญ</th>
+                <th class="py-3 px-3">การรักษา/ปฐมพยาบาล</th>
+                <th class="py-3 px-3">เวชภัณฑ์ที่ใช้</th>
+                <th class="py-3 px-3">ผลการดูแล</th>
+                <th class="py-3 px-3">ผู้บันทึก</th>
+              </tr>
+            </thead>
+            <tbody id="caseTableBody" class="divide-y divide-slate-700/60 font-light">
+              <tr>
+                <td colspan="9" class="text-center py-8 text-slate-500">กำลังโหลดข้อมูล...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: บันทึกเคสด่วน (Fast Log) -->
+    <section id="tabFastLog" class="space-y-6 hidden">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-4xl mx-auto">
+        <div class="border-b border-slate-700 pb-3 mb-5 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
+              <i class="fa-solid fa-file-waveform text-emerald-400"></i> แบบบันทึกการปฐมพยาบาลด่วน
+            </h2>
+            <p class="text-xs text-slate-400">กรอกข้อมูลเฉพาะจุดจำเป็นเพื่อให้การดูแลผู้ป่วยได้ทันเวลา</p>
+          </div>
+          <span class="text-xs bg-emerald-950 border border-emerald-700 text-emerald-300 px-2.5 py-1 rounded-md">
+            Event: <strong id="formCurrentEventName">-</strong>
+          </span>
+        </div>
+
+        <form id="formFastLog" onsubmit="handleCreateCase(event)" class="space-y-4">
+          <!-- แถวที่ 1: เวลา จุด และกลุ่มผู้ป่วย -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">เวลาเกิดเหตุ / รับบริการ *</label>
+              <input type="time" id="inpTime" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">จุดปฐมพยาบาล / โซน *</label>
+              <select id="inpLocation" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                <option value="">-- เลือกจุดประจำการ --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">ประเภทผู้รับบริการ *</label>
+              <select id="inpType" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                <option value="นักวิ่ง / นักกีฬา">นักวิ่ง / นักกีฬา</option>
+                <option value="เจ้าหน้าที่งาน (Staff)">เจ้าหน้าที่งาน (Staff)</option>
+                <option value="ประชาชนทั่วไป">ประชาชนทั่วไป</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- แถวที่ 2: เพศ และอาการสำคัญ -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">เพศ *</label>
+              <select id="inpGender" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                <option value="ชาย">ชาย</option>
+                <option value="หญิง">หญิง</option>
+                <option value="ไม่ระบุ">ไม่ระบุ</option>
+              </select>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-300 mb-1">อาการสำคัญ (Chief Complaint) *</label>
+              <input type="text" id="inpComplaint" list="complaintSuggestions" required placeholder="เช่น ตะคริวน่องขวา, หน้ามืด, แผลถลอกเข่า" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+              <datalist id="complaintSuggestions"></datalist>
+            </div>
+          </div>
+
+          <!-- แถวที่ 3: การประเมิน และการปฐมพยาบาล -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">การประเมินสภาพเบื้องต้น (Assessment) *</label>
+              <input type="text" id="inpAssessment" required placeholder="เช่น Muscle Cramp, Abrasion Wound" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">การปฐมพยาบาลที่ให้ (Treatment) *</label>
+              <input type="text" id="inpTreatment" required placeholder="เช่น นวดคลายกล้ามเนื้อ, ทำแผล NSS, ดมแอมโมเนีย" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+
+          <!-- แถวที่ 4: ผลลัพธ์ และหมายเหตุ -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">ผลการดูแล (Outcome) *</label>
+              <select id="inpOutcome" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                <option value="ดีขึ้น กลับบ้านได้">ดีขึ้น กลับบ้านได้</option>
+                <option value="นั่งพักสังเกตอาการ">นั่งพักสังเกตอาการ</option>
+                <option value="ส่งต่อโรงพยาบาล (Referral)">ส่งต่อโรงพยาบาล (Referral)</option>
+                <option value="ปฏิเสธการรักษา">ปฏิเสธการรักษา</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">หมายเหตุ (Remarks) *</label>
+              <input type="text" id="inpRemarks" value="-" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+
+          <!-- Accordion: ข้อมูลระบุบุคคล & สัญญาณชีพ (Optional) -->
+          <details class="bg-slate-900/60 border border-slate-700/80 rounded-lg p-3 text-sm">
+            <summary class="font-medium text-xs text-slate-400 cursor-pointer hover:text-emerald-400 flex items-center justify-between">
+              <span><i class="fa-solid fa-id-card-clip mr-1.5"></i> ข้อมูลระบุตัวตน & สัญญาณชีพ (เว้นว่างได้หากเร่งด่วน)</span>
+              <span class="text-[10px] text-slate-500">คลิกเพื่อเปิด/ปิด</span>
+            </summary>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-800">
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">ชื่อ-นามสกุล ผู้รับบริการ</label>
+                <input type="text" id="inpPatientName" placeholder="นาย..." class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">อายุ (ปี)</label>
+                <input type="number" id="inpAge" placeholder="30" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">เบอร์โทรศัพท์</label>
+                <input type="tel" id="inpPhone" placeholder="08xxxxxxxx" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">ความดันโลหิต (BP)</label>
+                <input type="text" id="inpBP" placeholder="120/80" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">ชีพจร (PR bpm)</label>
+                <input type="number" id="inpPR" placeholder="80" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">ออกซิเจน (SpO2 %)</label>
+                <input type="number" id="inpSpO2" placeholder="99" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-white">
+              </div>
+            </div>
+          </details>
+
+          <!-- ผู้บันทึก (ล็อกตาม Staff Login) -->
+          <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-3 flex items-center justify-between text-xs">
+            <span class="text-slate-400">ผู้ให้การปฐมพยาบาล / บันทึกข้อมูล:</span>
+            <span id="formResponderBadge" class="font-bold text-emerald-400">-</span>
+          </div>
+
+          <!-- ปุ่มส่งข้อมูล -->
+          <button type="submit" id="btnSubmitFastLog" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-floppy-disk"></i> ยืนยันบันทึกข้อมูลเคส
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (Inventory Usage) -->
+    <section id="tabInventory" class="space-y-6 hidden">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
+        <div class="border-b border-slate-700 pb-3 mb-4">
+          <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
+            <i class="fa-solid fa-box-open text-amber-400"></i> บันทึกเวชภัณฑ์ที่ใช้ย้อนหลัง
+          </h2>
+          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ แล้วเพิ่มรายการยา/อุปกรณ์ที่ใช้</p>
+        </div>
+
+        <form id="formInventory" onsubmit="handleAddInventory(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">เลือกเคสผู้ป่วย (Record ID) *</label>
+            <select id="invRecordSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+              <option value="">-- เลือกเคสที่ต้องการเติมยา --</option>
+            </select>
+          </div>
+
+          <!-- Quick Items Pills -->
+          <div>
+            <label class="block text-xs text-slate-400 mb-2">เวชภัณฑ์ที่ใช้บ่อย (คลิกเพื่อเพิ่มด่วน):</label>
+            <div id="quickItemsContainer" class="flex flex-wrap gap-1.5">
+              <!-- Render pills dynamically -->
+            </div>
+          </div>
+
+          <!-- ตารางรายการยาที่จะบันทึก -->
+          <div class="bg-slate-900 border border-slate-700/80 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-slate-300">รายการที่จะบันทึก:</span>
+              <button type="button" onclick="addCustomItemRow()" class="text-xs text-emerald-400 hover:underline">
+                + เพิ่มแถวรายการเอง
+              </button>
+            </div>
+            <div id="invItemsList" class="space-y-2">
+              <p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ คลิกปุ่มด้านบนเพื่อเพิ่ม</p>
+            </div>
+          </div>
+
+          <button type="submit" id="btnSubmitInventory" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-check"></i> บันทึกรายการเวชภัณฑ์ลงฐานข้อมูล
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 4: จัดการกิจกรรม (Admin Only) -->
+    <section id="tabAdmin" class="space-y-6 hidden">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
+        <div class="border-b border-slate-700 pb-3 mb-4">
+          <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
+            <i class="fa-solid fa-calendar-plus text-purple-400"></i> สร้างกิจกรรมใหม่ (Event Creator)
+          </h2>
+          <p class="text-xs text-slate-400">สร้างงาน กำหนดวันเริ่ม-สิ้นสุด และจุดปฐมพยาบาลเฉพาะงาน</p>
+        </div>
+
+        <form onsubmit="handleCreateEvent(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">ชื่อกิจกรรม *</label>
+            <input type="text" id="admEventName" required placeholder="เช่น งานวิ่งการกุศล ประจำปี 2026" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">วันที่เริ่มจัดงาน *</label>
+              <input type="date" id="admStartDate" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">วันที่สิ้นสุดงาน *</label>
+              <input type="date" id="admEndDate" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">สถานที่จัดงานหลัก</label>
+            <input type="text" id="admLocation" placeholder="เช่น สวนลุมพินี กรุงเทพฯ" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">จุดปฐมพยาบาลในงาน (คั่นด้วยเครื่องหมายจุลภาค , ) *</label>
+            <input type="text" id="admZones" required placeholder="เต็นท์หลัก, จุดปล่อยตัว, กม. 10, เส้นชัย" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+          </div>
+
+          <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-plus"></i> สร้างกิจกรรมและบันทึกลงระบบ
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PIN Modal -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-6 text-center">
+      <div class="w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+        <i class="fa-solid fa-key"></i>
+      </div>
+      <h3 class="text-lg font-bold font-heading text-white">เข้าสู่ระบบด้วยรหัส PIN</h3>
+      <p class="text-xs text-slate-400 mt-1 mb-5">ระบุรหัส PIN 4 หลักของท่านเพื่อปลดล็อกสิทธิ์</p>
+
+      <div class="mb-4">
+        <input type="password" id="inputPin" maxlength="6" placeholder="• • • •" class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 text-center text-2xl tracking-[0.5em] font-mono text-emerald-400 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="closeLoginModal()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-sm transition">ยกเลิก</button>
+        <button onclick="submitPinAuth()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-xl text-sm transition">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // URL Google Apps Script Web App ของคุณ
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxmglLV28Y_14DVcPoaflpfJjbjAs9vWfpKT7PGsFkInHM9sicjzALlxmncY32Uh5godg/exec";
+
+    // Application State
+    let currentUser = {
+      role: 'public', // public, staff, marketing, admin
+      displayName: '',
+      staffId: ''
+    };
+    let systemData = {
+      events: [],
+      dropdowns: { types: [], complaints: [], outcomes: [], items: [] },
+      currentEventId: '',
+      currentCases: [],
+      currentInventory: []
+    };
+
+    // เริ่มต้นระบบ
+    window.addEventListener('DOMContentLoaded', () => {
+      // ตรวจสอบ Session เดิม
+      const savedUser = sessionStorage.getItem('firstAidUser');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+      }
+      updateUserUI();
+      fetchInitialData();
+    });
+
+    // แสดง/ซ่อน Loading
+    function showLoading(msg = 'กำลังโหลดข้อมูล...') {
+      document.getElementById('loadingText').innerText = msg;
+      document.getElementById('loadingOverlay').classList.remove('hidden');
+    }
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+
+    // ดึงข้อมูลเริ่มต้น (Events + Dropdowns)
+    async function fetchInitialData() {
+      showLoading('กำลังโหลดข้อมูลกิจกรรมและตัวเลือก...');
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=getInitialData&role=${currentUser.role}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          systemData.events = data.events;
+          systemData.dropdowns = data.dropdowns;
+
+          renderEventSelect();
+          renderDropdowns();
+
+          if (systemData.events.length > 0) {
+            changeEvent(systemData.events[0].event_id);
+          } else {
+            hideLoading();
+          }
+        } else {
+          alert('เกิดข้อผิดพลาด: ' + data.message);
+          hideLoading();
+        }
+      } catch (err) {
+        console.error(err);
+        alert('ไม่สามารถเชื่อมต่อกับ GAS API ได้ กรุณาตรวจสอบสิทธิ์และการ Deploy');
+        hideLoading();
+      }
+    }
+
+    // ดึงข้อมูลเคสและเวชภัณฑ์ของ Event ที่เลือก
+    async function fetchEventCases() {
+      if (!systemData.currentEventId) return;
+      showLoading('กำลังดึงข้อมูลเวชระเบียน...');
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=getEventCases&event_id=${systemData.currentEventId}&role=${currentUser.role}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          systemData.currentCases = data.cases;
+          systemData.currentInventory = data.inventoryUsage;
+          renderDashboard();
+          renderInventoryDropdownCases();
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // สลับ Event
+    function changeEvent(eventId) {
+      systemData.currentEventId = eventId;
+      const currentEvt = systemData.events.find(e => e.event_id === eventId);
+      if (!currentEvt) return;
+
+      document.getElementById('formCurrentEventName').innerText = currentEvt.event_name;
+
+      // จัดการตัวเลือก Location ตาม Zones ของงาน
+      const locSelect = document.getElementById('inpLocation');
+      locSelect.innerHTML = '<option value="">-- เลือกจุดประจำการ --</option>';
+      currentEvt.zones.forEach(z => {
+        locSelect.innerHTML += `<option value="${z}">${z}</option>`;
+      });
+
+      // ตรวจสอบวันปิดรับข้อมูล (+2 วัน)
+      enforceEventLock(currentEvt.is_closed);
+      fetchEventCases();
+    }
+
+    // กฎล็อกฟอร์มเมื่อปิดรับข้อมูล
+    function enforceEventLock(isClosed) {
+      const banner = document.getElementById('closedEventBanner');
+      const bypassBadge = document.getElementById('adminBypassBadge');
+      const btnFastLog = document.getElementById('btnSubmitFastLog');
+      const btnInv = document.getElementById('btnSubmitInventory');
+      const formFastLog = document.getElementById('formFastLog');
+
+      if (isClosed) {
+        banner.classList.remove('hidden');
+        if (currentUser.role === 'admin') {
+          // Admin Override
+          bypassBadge.classList.remove('hidden');
+          btnFastLog.disabled = false;
+          btnFastLog.className = 'w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2';
+          btnFastLog.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลเคส (Admin Override)';
+          btnInv.disabled = false;
+          btnInv.className = 'w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-2';
+          enableFormFields(formFastLog, true);
+        } else {
+          // Locked
+          bypassBadge.classList.add('hidden');
+          btnFastLog.disabled = true;
+          btnFastLog.className = 'w-full bg-slate-600 text-slate-400 font-medium py-3 rounded-lg cursor-not-allowed flex items-center justify-center gap-2';
+          btnFastLog.innerHTML = '<i class="fa-solid fa-lock"></i> ปิดรับการบันทึกข้อมูลแล้ว';
+          btnInv.disabled = true;
+          btnInv.className = 'w-full bg-slate-600 text-slate-400 font-medium py-2.5 rounded-lg cursor-not-allowed flex items-center justify-center gap-2';
+          enableFormFields(formFastLog, false);
+        }
+      } else {
+        banner.classList.add('hidden');
+        bypassBadge.classList.add('hidden');
+        btnFastLog.disabled = false;
+        btnFastLog.className = 'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition';
+        btnFastLog.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ยืนยันบันทึกข้อมูลเคส';
+        btnInv.disabled = false;
+        btnInv.className = 'w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-2 transition';
+        enableFormFields(formFastLog, true);
+      }
+    }
+
+    function enableFormFields(form, enable) {
+      const elements = form.querySelectorAll('input, select, textarea');
+      elements.forEach(el => {
+        if (el.id !== 'formCurrentEventName') {
+          el.disabled = !enable;
+        }
+      });
+    }
+
+    // Render Event Select
+    function renderEventSelect() {
+      const select = document.getElementById('eventSelect');
+      select.innerHTML = '';
+      systemData.events.forEach(evt => {
+        const closedTag = evt.is_closed ? '[ปิดรับ] ' : '';
+        select.innerHTML += `<option value="${evt.event_id}">${closedTag}${evt.event_name}</option>`;
+      });
+    }
+
+    // Render Dropdowns
+    function renderDropdowns() {
+      const dd = systemData.dropdowns;
+      // Suggestions
+      const dataList = document.getElementById('complaintSuggestions');
+      dataList.innerHTML = '';
+      dd.complaints.forEach(c => dataList.innerHTML += `<option value="${c}">`);
+
+      // Quick Pills for Inventory
+      const pillsBox = document.getElementById('quickItemsContainer');
+      pillsBox.innerHTML = '';
+      dd.items.forEach(it => {
+        pillsBox.innerHTML += `
+          <button type="button" onclick="addInventoryItem('${it}', 1)" class="text-xs bg-slate-800 hover:bg-amber-900/60 hover:text-amber-200 border border-slate-600 text-slate-300 px-2 py-1 rounded transition">
+            + ${it}
+          </button>
+        `;
+      });
+    }
+
+    // Render Dashboard
+    function renderDashboard() {
+      const cases = systemData.currentCases;
+      const inv = systemData.currentInventory;
+
+      document.getElementById('kpiTotalCases').innerText = cases.length;
+
+      const males = cases.filter(c => c.gender === 'ชาย').length;
+      const females = cases.filter(c => c.gender === 'หญิง').length;
+      document.getElementById('kpiGender').innerText = `${males} / ${females}`;
+
+      const refers = cases.filter(c => c.outcome && c.outcome.includes('ส่งต่อ')).length;
+      document.getElementById('kpiRefer').innerText = refers;
+
+      // Complaint Counts
+      const complaintCounts = {};
+      cases.forEach(c => {
+        const comp = c.chief_complaint || 'อื่นๆ';
+        complaintCounts[comp] = (complaintCounts[comp] || 0) + 1;
+      });
+      const sortedComp = Object.entries(complaintCounts).sort((a,b) => b[1] - a[1]);
+      document.getElementById('kpiTopComplaint').innerText = sortedComp.length > 0 ? sortedComp[0][0] : '-';
+
+      // Render Bar Chart
+      const statsList = document.getElementById('complaintStatsList');
+      if (sortedComp.length === 0) {
+        statsList.innerHTML = '<p class="text-xs text-slate-400 italic">ไม่มีข้อมูลเคสในกิจกรรมนี้</p>';
+      } else {
+        statsList.innerHTML = sortedComp.slice(0, 5).map(([name, count]) => {
+          const pct = Math.round((count / cases.length) * 100);
+          return `
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">${name}</span>
+                <span class="text-slate-400 font-mono">${count} เคส (${pct}%)</span>
+              </div>
+              <div class="w-full bg-slate-900 rounded-full h-2">
+                <div class="bg-emerald-500 h-2 rounded-full" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render Cases Table
+      const tbody = document.getElementById('caseTableBody');
+      if (cases.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-6 text-slate-500">ยังไม่มีข้อมูลเคสในกิจกรรมนี้</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = cases.map(c => {
+        // Items used for this case
+        const usedItems = inv.filter(i => i.record_id === c.record_id);
+        const itemsBadge = usedItems.length > 0 
+          ? usedItems.map(i => `<span class="inline-block bg-amber-950/70 border border-amber-800 text-amber-300 px-1.5 py-0.5 rounded text-[10px] mr-1 mb-1">${i.item_name} x${i.quantity}</span>`).join('')
+          : '<span class="text-slate-500">-</span>';
+
+        return `
+          <tr class="hover:bg-slate-800/50 transition">
+            <td class="py-2.5 px-3 font-mono font-medium text-emerald-400">${c.record_id}</td>
+            <td class="py-2.5 px-3">${c.incident_time}</td>
+            <td class="py-2.5 px-3">${c.location}</td>
+            <td class="py-2.5 px-3">
+              <div class="font-medium text-slate-200">${c.patient_name}</div>
+              <div class="text-[10px] text-slate-400">${c.gender} ${c.age ? `(${c.age} ปี)` : ''} • ${c.contact_number}</div>
+            </td>
+            <td class="py-2.5 px-3 text-slate-200">${c.chief_complaint}</td>
+            <td class="py-2.5 px-3">${c.treatment}</td>
+            <td class="py-2.5 px-3">${itemsBadge}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] ${c.outcome.includes('ส่งต่อ') ? 'bg-rose-950 border border-rose-800 text-rose-300' : 'bg-emerald-950 border border-emerald-800 text-emerald-300'}">
+                ${c.outcome}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-400 text-[11px]">${c.responder_name || '-'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Populate Case Dropdown for Inventory
+    function renderInventoryDropdownCases() {
+      const select = document.getElementById('invRecordSelect');
+      select.innerHTML = '<option value="">-- เลือกเคสที่ต้องการเติมยา --</option>';
+      systemData.currentCases.forEach(c => {
+        select.innerHTML += `<option value="${c.record_id}">[${c.record_id}] ${c.incident_time} - ${c.patient_name} (${c.chief_complaint})</option>`;
+      });
+    }
+
+    // Dynamic Inventory Rows
+    let activeInventoryList = [];
+    function addInventoryItem(name, qty = 1) {
+      const existing = activeInventoryList.find(i => i.name === name);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        activeInventoryList.push({ name: name, qty: qty, unit: 'ชิ้น' });
+      }
+      renderInvRows();
+    }
+    function addCustomItemRow() {
+      activeInventoryList.push({ name: '', qty: 1, unit: 'ชิ้น' });
+      renderInvRows();
+    }
+    function removeInvRow(index) {
+      activeInventoryList.splice(index, 1);
+      renderInvRows();
+    }
+    function renderInvRows() {
+      const box = document.getElementById('invItemsList');
+      if (activeInventoryList.length === 0) {
+        box.innerHTML = '<p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ คลิกปุ่มด้านบนเพื่อเพิ่ม</p>';
+        return;
+      }
+      box.innerHTML = activeInventoryList.map((item, idx) => `
+        <div class="flex items-center gap-2">
+          <input type="text" value="${item.name}" placeholder="ชื่อเวชภัณฑ์/ยา" onchange="activeInventoryList[${idx}].name = this.value" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
+          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white text-center">
+          <button type="button" onclick="removeInvRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+      `).join('');
+    }
+
+    // Submit: Fast Log
+    async function handleCreateCase(e) {
+      e.preventDefault();
+      showLoading('กำลังบันทึกเวชระเบียนลง Google Sheets...');
+
+      const payload = {
+        action: 'createCase',
+        role: currentUser.role,
+        staff_id: currentUser.staffId,
+        responder_name: currentUser.displayName,
+        event_id: systemData.currentEventId,
+        incident_time: document.getElementById('inpTime').value,
+        location: document.getElementById('inpLocation').value,
+        type: document.getElementById('inpType').value,
+        gender: document.getElementById('inpGender').value,
+        chief_complaint: document.getElementById('inpComplaint').value,
+        assessment: document.getElementById('inpAssessment').value,
+        treatment: document.getElementById('inpTreatment').value,
+        outcome: document.getElementById('inpOutcome').value,
+        remarks: document.getElementById('inpRemarks').value,
+        patient_name: document.getElementById('inpPatientName').value,
+        age: document.getElementById('inpAge').value,
+        contact_number: document.getElementById('inpPhone').value,
+        vitals_bp: document.getElementById('inpBP').value,
+        vitals_pr: document.getElementById('inpPR').value,
+        vitals_spo2: document.getElementById('inpSpO2').value
+      };
+
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('✅ บันทึกเคสเรียบร้อย! รหัสอ้างอิง: ' + data.record_id);
+          document.getElementById('formFastLog').reset();
+          document.getElementById('inpRemarks').value = '-';
+          switchTab('tabDashboard');
+          fetchEventCases();
+        } else {
+          alert('❌ เกิดข้อผิดพลาด: ' + data.message);
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Submit: Inventory
+    async function handleAddInventory(e) {
+      e.preventDefault();
+      const recId = document.getElementById('invRecordSelect').value;
+      if (!recId) return alert('กรุณาเลือกเคสที่ต้องการเติมยา');
+      if (activeInventoryList.length === 0) return alert('กรุณาระบุรายการเวชภัณฑ์อย่างน้อย 1 รายการ');
+
+      showLoading('กำลังบันทึกรายการเวชภัณฑ์...');
+      const payload = {
+        action: 'addInventory',
+        role: currentUser.role,
+        staff_id: currentUser.staffId,
+        event_id: systemData.currentEventId,
+        record_id: recId,
+        items: activeInventoryList.map(i => ({ item_name: i.name, quantity: i.qty, unit: i.unit }))
+      };
+
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('✅ บันทึกเวชภัณฑ์สำเร็จ!');
+          activeInventoryList = [];
+          renderInvRows();
+          switchTab('tabDashboard');
+          fetchEventCases();
+        } else {
+          alert('❌ ' + data.message);
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Submit: Create Event
+    async function handleCreateEvent(e) {
+      e.preventDefault();
+      showLoading('กำลังสร้างกิจกรรมใหม่...');
+      const payload = {
+        action: 'createEvent',
+        role: currentUser.role,
+        event_name: document.getElementById('admEventName').value,
+        start_date: document.getElementById('admStartDate').value,
+        end_date: document.getElementById('admEndDate').value,
+        location: document.getElementById('admLocation').value,
+        zones: document.getElementById('admZones').value
+      };
+
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('✅ สร้างกิจกรรมใหม่เรียบร้อย!');
+          fetchInitialData();
+          switchTab('tabDashboard');
+        } else {
+          alert('❌ ' + data.message);
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Authentication (PIN)
+    function openLoginModal() {
+      document.getElementById('inputPin').value = '';
+      document.getElementById('loginModal').classList.remove('hidden');
+      document.getElementById('inputPin').focus();
+    }
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.add('hidden');
+    }
+
+    async function submitPinAuth() {
+      const pin = document.getElementById('inputPin').value.trim();
+      if (!pin) return;
+
+      showLoading('กำลังตรวจสอบรหัส PIN...');
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'verifyPin', pin: pin })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          currentUser = {
+            role: data.role,
+            displayName: data.displayName,
+            staffId: data.staffId
+          };
+          sessionStorage.setItem('firstAidUser', JSON.stringify(currentUser));
+          closeLoginModal();
+          updateUserUI();
+          fetchInitialData();
+        } else {
+          alert('❌ ' + data.message);
+        }
+      } catch (err) {
+        alert('ไม่สามารถตรวจสอบสิทธิ์ได้');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('firstAidUser');
+      currentUser = { role: 'public', displayName: '', staffId: '' };
+      updateUserUI();
+      switchTab('tabDashboard');
+      fetchInitialData();
+    }
+
+    // Update UI based on User Role
+    function updateUserUI() {
+      const roleBadge = document.getElementById('roleBadge');
+      const btnLoginModal = document.getElementById('btnLoginModal');
+      const userProfileBadge = document.getElementById('userProfileBadge');
+      const navUserName = document.getElementById('navUserName');
+      const navUserRole = document.getElementById('navUserRole');
+      const pdpaNoticeText = document.getElementById('pdpaNoticeText');
+
+      const navTabFastLog = document.getElementById('navTabFastLog');
+      const navTabInventory = document.getElementById('navTabInventory');
+      const navTabAdmin = document.getElementById('navTabAdmin');
+
+      if (currentUser.role === 'public') {
+        btnLoginModal.classList.remove('hidden');
+        userProfileBadge.classList.add('hidden');
+        roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-slate-700 text-slate-300 border-slate-600';
+        roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
+        pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
+
+        navTabFastLog.classList.add('hidden');
+        navTabInventory.classList.add('hidden');
+        navTabAdmin.classList.add('hidden');
+      } else {
+        btnLoginModal.classList.add('hidden');
+        userProfileBadge.classList.remove('hidden');
+        userProfileBadge.classList.add('flex');
+        navUserName.innerText = currentUser.displayName;
+        navUserRole.innerText = `ROLE: ${currentUser.role} (${currentUser.staffId})`;
+
+        document.getElementById('formResponderBadge').innerText = `${currentUser.displayName} [${currentUser.staffId}]`;
+
+        if (currentUser.role === 'staff') {
+          roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-emerald-950 text-emerald-300 border-emerald-700';
+          roleBadge.innerHTML = '<i class="fa-solid fa-user-nurse mr-1"></i> เจ้าหน้าที่ (Staff)';
+          pdpaNoticeText.innerHTML = '<i class="fa-solid fa-lock-open text-emerald-400"></i> โหมดเจ้าหน้าที่: แสดงข้อมูลชื่อและเบอร์โทรศัพท์จริงสำหรับการรักษา';
+
+          navTabFastLog.classList.remove('hidden');
+          navTabInventory.classList.remove('hidden');
+          navTabAdmin.classList.add('hidden');
+        } else if (currentUser.role === 'marketing') {
+          roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-blue-950 text-blue-300 border-blue-700';
+          roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';
+          pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดการตลาด: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
+
+          navTabFastLog.classList.add('hidden');
+          navTabInventory.classList.add('hidden');
+          navTabAdmin.classList.add('hidden');
+        } else if (currentUser.role === 'admin') {
+          roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-purple-950 text-purple-300 border-purple-700';
+          roleBadge.innerHTML = '<i class="fa-solid fa-shield-cat mr-1"></i> แอดมิน (Super Admin)';
+          pdpaNoticeText.innerHTML = '<i class="fa-solid fa-unlock text-purple-400"></i> สิทธิ์สูงสุด (Super Admin): เข้าถึงข้อมูลและแก้ไขได้ทุกระบบ';
+
+          navTabFastLog.classList.remove('hidden');
+          navTabInventory.classList.remove('hidden');
+          navTabAdmin.classList.remove('hidden');
+        }
+      }
+    }
+
+    // Switch Tabs
+    function switchTab(tabId) {
+      ['tabDashboard', 'tabFastLog', 'tabInventory', 'tabAdmin'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+
+      // Update button styling
+      const mapping = {
+        'tabDashboard': 'navTabDashboard',
+        'tabFastLog': 'navTabFastLog',
+        'tabInventory': 'navTabInventory',
+        'tabAdmin': 'navTabAdmin'
+      };
+      Object.entries(mapping).forEach(([secId, btnId]) => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          if (secId === tabId) {
+            btn.className = 'tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap';
+          } else {
+            btn.className = 'tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap';
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
