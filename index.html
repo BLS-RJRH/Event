@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <!-- SheetJS สำหรับ Export Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script>
     tailwind.config = {
@@ -24,13 +23,14 @@
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
-    .hidden { display: none !important; }
+    /* กฎเหล็ก: ซ่อนเด็ดขาดเมื่อมีคลาส hidden ไม่ให้ Tailwind flex ทับได้ */
+    .hidden, [hidden] { display: none !important; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
   <!-- แถบแจ้งเตือน Loading -->
-  <div id="loadingOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+  <div id="loadingOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden" style="display: none;">
     <i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-400 mb-4"></i>
     <p id="loadingText" class="text-lg font-medium text-slate-200">กำลังติดต่อฐานข้อมูล Google Sheets...</p>
   </div>
@@ -53,7 +53,6 @@
         </div>
       </div>
 
-      <!-- แถบเลือก Event และปุ่มล็อกอิน -->
       <div class="flex items-center flex-wrap gap-2">
         <div class="bg-slate-950/70 border border-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
           <i class="fa-regular fa-calendar-check text-emerald-400 text-sm"></i>
@@ -68,7 +67,7 @@
             <i class="fa-solid fa-lock"></i> เข้าสู่ระบบ (PIN)
           </button>
 
-          <div id="userProfileBadge" class="hidden items-center gap-2">
+          <div id="userProfileBadge" class="hidden items-center gap-2" style="display: none;">
             <div class="bg-slate-700/80 border border-slate-600 px-3 py-1 rounded-lg text-xs flex items-center gap-2">
               <i class="fa-solid fa-circle-user text-emerald-400 text-base"></i>
               <div>
@@ -86,27 +85,27 @@
   </header>
 
   <!-- Banner แจ้งเตือนเมื่อ Event ปิดรับข้อมูล -->
-  <div id="closedEventBanner" class="bg-rose-950/80 border-b border-rose-700/60 px-4 py-2.5 text-center hidden">
+  <div id="closedEventBanner" class="bg-rose-950/80 border-b border-rose-700/60 px-4 py-2.5 text-center hidden" style="display: none;">
     <div class="max-w-7xl mx-auto flex items-center justify-center gap-2 text-rose-300 text-sm font-medium">
       <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
       <span>กิจกรรมนี้สิ้นสุดเกิน 2 วันแล้ว ระบบได้ทำการปิดรับข้อมูลเวชระเบียนถาวร (เปิดอ่านได้อย่างเดียว)</span>
-      <span id="adminBypassBadge" class="hidden ml-2 px-2 py-0.5 rounded text-xs bg-purple-900 border border-purple-500 text-purple-200 font-bold">⚡ Admin Override Activated</span>
+      <span id="adminBypassBadge" class="hidden ml-2 px-2 py-0.5 rounded text-xs bg-purple-900 border border-purple-500 text-purple-200 font-bold" style="display: none;">⚡ Admin Override Activated</span>
     </div>
   </div>
 
-  <!-- Navigation Tabs -->
+  <!-- Navigation Tabs (ซ่อนด้วย Inline Style display: none เป็นค่าตั้งต้น) -->
   <div class="bg-slate-800 border-b border-slate-700/80">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm">
       <button onclick="switchTab('tabDashboard')" id="navTabDashboard" class="tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-chart-pie"></i> 1. สรุปสถิติและประวัติเคส
       </button>
-      <button onclick="switchTab('tabFastLog')" id="navTabFastLog" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap hidden">
+      <button onclick="switchTab('tabFastLog')" id="navTabFastLog" style="display: none;" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 items-center gap-2 whitespace-nowrap hidden">
         <i class="fa-solid fa-notes-medical"></i> 2. บันทึกเคสด่วน
       </button>
-      <button onclick="switchTab('tabInventory')" id="navTabInventory" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap hidden">
+      <button onclick="switchTab('tabInventory')" id="navTabInventory" style="display: none;" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 items-center gap-2 whitespace-nowrap hidden">
         <i class="fa-solid fa-box-archive"></i> 3. บันทึกเวชภัณฑ์ย้อนหลัง
       </button>
-      <button onclick="switchTab('tabAdmin')" id="navTabAdmin" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap hidden">
+      <button onclick="switchTab('tabAdmin')" id="navTabAdmin" style="display: none;" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 items-center gap-2 whitespace-nowrap hidden">
         <i class="fa-solid fa-gear"></i> 4. จัดการกิจกรรม (Admin)
       </button>
     </div>
@@ -117,7 +116,6 @@
 
     <!-- TAB 1: สรุปสถิติ & ประวัติเคส -->
     <section id="tabDashboard" class="space-y-6">
-      <!-- KPI Cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
           <p class="text-xs text-slate-400">ยอดผู้รับบริการทั้งหมด</p>
@@ -148,7 +146,6 @@
         </div>
       </div>
 
-      <!-- สถิติอาการพบบ่อย Top 5 -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-md">
         <h3 class="font-heading font-semibold text-white text-base mb-4 flex items-center gap-2">
           <i class="fa-solid fa-chart-column text-emerald-400"></i> สถิติกลุ่มอาการสำคัญที่พบบ่อย (Chief Complaints)
@@ -158,7 +155,6 @@
         </div>
       </div>
 
-      <!-- ตารางประวัติบันทึกเคส -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl shadow-md overflow-hidden">
         <div class="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -170,8 +166,7 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <!-- ปุ่ม Export Excel (แสดงเฉพาะเมื่อล็อกอินด้วย PIN) -->
-            <button id="btnExportExcel" onclick="exportToExcel()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg border border-emerald-500 shadow transition flex items-center gap-1.5 hidden">
+            <button id="btnExportExcel" onclick="exportToExcel()" style="display: none;" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg border border-emerald-500 shadow transition flex items-center gap-1.5 hidden">
               <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
             <button onclick="fetchEventCases()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
@@ -204,7 +199,7 @@
     </section>
 
     <!-- TAB 2: บันทึกเคสด่วน (Fast Log) -->
-    <section id="tabFastLog" class="space-y-6 hidden">
+    <section id="tabFastLog" class="space-y-6 hidden" style="display: none;">
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-4xl mx-auto">
         <div class="border-b border-slate-700 pb-3 mb-5 flex items-center justify-between">
           <div>
@@ -324,7 +319,7 @@
     </section>
 
     <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (Inventory Usage) -->
-    <section id="tabInventory" class="space-y-6 hidden">
+    <section id="tabInventory" class="space-y-6 hidden" style="display: none;">
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
         <div class="border-b border-slate-700 pb-3 mb-4">
           <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
@@ -366,7 +361,7 @@
     </section>
 
     <!-- TAB 4: จัดการกิจกรรม (Admin Only) -->
-    <section id="tabAdmin" class="space-y-6 hidden">
+    <section id="tabAdmin" class="space-y-6 hidden" style="display: none;">
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
         <div class="border-b border-slate-700 pb-3 mb-4">
           <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
@@ -409,7 +404,7 @@
   </main>
 
   <!-- PIN Modal -->
-  <div id="loginModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div id="loginModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden" style="display: none;">
     <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-6 text-center">
       <div class="w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
         <i class="fa-solid fa-key"></i>
@@ -444,7 +439,6 @@
       currentInventory: []
     };
 
-    // ฟังก์ชันแปลงเวลาให้แสดงผลเฉพาะ HH:mm น.
     function formatDisplayTime(timeVal) {
       if (!timeVal || timeVal === '-' || timeVal === '') return '-';
       const str = String(timeVal).trim();
@@ -459,7 +453,6 @@
       return str.length === 5 ? `${str} น.` : str;
     }
 
-    // ฟังก์ชันแปลงวันที่
     function formatDisplayDate(dateVal) {
       if (!dateVal || dateVal === '-' || dateVal === '') return '-';
       const str = String(dateVal).trim();
@@ -481,10 +474,14 @@
 
     function showLoading(msg = 'กำลังโหลดข้อมูล...') {
       document.getElementById('loadingText').innerText = msg;
-      document.getElementById('loadingOverlay').classList.remove('hidden');
+      const el = document.getElementById('loadingOverlay');
+      el.classList.remove('hidden');
+      el.style.display = 'flex';
     }
     function hideLoading() {
-      document.getElementById('loadingOverlay').classList.add('hidden');
+      const el = document.getElementById('loadingOverlay');
+      el.classList.add('hidden');
+      el.style.display = 'none';
     }
 
     async function fetchInitialData() {
@@ -562,8 +559,11 @@
 
       if (isClosed) {
         banner.classList.remove('hidden');
+        banner.style.display = 'block';
+
         if (currentUser.role === 'admin') {
           bypassBadge.classList.remove('hidden');
+          bypassBadge.style.display = 'inline-block';
           btnFastLog.disabled = false;
           btnFastLog.className = 'w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2';
           btnFastLog.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลเคส (Admin Override)';
@@ -572,6 +572,7 @@
           enableFormFields(formFastLog, true);
         } else {
           bypassBadge.classList.add('hidden');
+          bypassBadge.style.display = 'none';
           btnFastLog.disabled = true;
           btnFastLog.className = 'w-full bg-slate-600 text-slate-400 font-medium py-3 rounded-lg cursor-not-allowed flex items-center justify-center gap-2';
           btnFastLog.innerHTML = '<i class="fa-solid fa-lock"></i> ปิดรับการบันทึกข้อมูลแล้ว';
@@ -581,7 +582,9 @@
         }
       } else {
         banner.classList.add('hidden');
+        banner.style.display = 'none';
         bypassBadge.classList.add('hidden');
+        bypassBadge.style.display = 'none';
         btnFastLog.disabled = false;
         btnFastLog.className = 'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition';
         btnFastLog.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ยืนยันบันทึกข้อมูลเคส';
@@ -647,7 +650,6 @@
       }
     }
 
-    // Render Dashboard (แสดงเฉพาะ 7 คอลัมน์ที่กำหนด)
     function renderDashboard() {
       const cases = systemData.currentCases;
 
@@ -688,7 +690,6 @@
         }).join('');
       }
 
-      // แสดงตาราง 7 คอลัมน์: รหัสเคส, วันที่, เวลา, อาการสำคัญ, การรักษา/ปฐมพยาบาล, ผลการดูแล, ผู้บันทึก
       const tbody = document.getElementById('caseTableBody');
       if (cases.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-500">ยังไม่มีข้อมูลเคสในกิจกรรมนี้</td></tr>';
@@ -712,7 +713,6 @@
       `).join('');
     }
 
-    // ฟังก์ชัน Export ข้อมูลเป็น Excel (.xlsx)
     function exportToExcel() {
       if (!systemData.currentCases || systemData.currentCases.length === 0) {
         alert('ไม่มีข้อมูลเคสสำหรับส่งออกเป็น Excel');
@@ -724,7 +724,6 @@
       const todayStr = new Date().toISOString().split('T')[0];
       const fileName = `${eventName}_${todayStr}.xlsx`;
 
-      // จัดรูปแบบข้อมูลสำหรับใส่ใน Sheet
       const excelRows = systemData.currentCases.map((c, idx) => {
         const usedItems = systemData.currentInventory.filter(i => i.record_id === c.record_id);
         const itemsText = usedItems.map(i => `${i.item_name} x${i.quantity}`).join(', ') || '-';
@@ -757,8 +756,6 @@
       const worksheet = XLSX.utils.json_to_sheet(excelRows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "เวชระเบียน");
-
-      // ดาวน์โหลดไฟล์ Excel
       XLSX.writeFile(workbook, fileName);
     }
 
@@ -925,11 +922,15 @@
 
     function openLoginModal() {
       document.getElementById('inputPin').value = '';
-      document.getElementById('loginModal').classList.remove('hidden');
+      const modal = document.getElementById('loginModal');
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
       document.getElementById('inputPin').focus();
     }
     function closeLoginModal() {
-      document.getElementById('loginModal').classList.add('hidden');
+      const modal = document.getElementById('loginModal');
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
     }
 
     async function submitPinAuth() {
@@ -973,6 +974,19 @@
       fetchInitialData();
     }
 
+    // ฟังก์ชันผู้ช่วยควบคุมการแสดง/ซ่อนองค์ประกอบแบบเด็ดขาด
+    function setVisibility(el, show, displayType = 'block') {
+      if (!el) return;
+      if (show) {
+        el.classList.remove('hidden');
+        el.style.display = displayType;
+      } else {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      }
+    }
+
+    // ควบคุม Role-Based Access Control (RBAC) อย่างเข้มงวด
     function updateUserUI() {
       const roleBadge = document.getElementById('roleBadge');
       const btnLoginModal = document.getElementById('btnLoginModal');
@@ -987,30 +1001,25 @@
       const navTabAdmin = document.getElementById('navTabAdmin');
 
       if (currentUser.role === 'public') {
-        btnLoginModal.classList.remove('hidden');
-        userProfileBadge.classList.add('hidden');
-        userProfileBadge.classList.remove('flex');
-        
-        // ซ่อนปุ่ม Export Excel เมื่อไม่ได้เข้าสู่ระบบ
-        btnExportExcel.classList.add('hidden');
+        setVisibility(btnLoginModal, true, 'flex');
+        setVisibility(userProfileBadge, false);
+        setVisibility(btnExportExcel, false);
 
         roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-slate-700 text-slate-300 border-slate-600';
         roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
         pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
-        navTabFastLog.classList.add('hidden');
-        navTabInventory.classList.add('hidden');
-        navTabAdmin.classList.add('hidden');
+        // ปิดแท็บ 2, 3, 4 ทันทีสำหรับบุคคลทั่วไป
+        setVisibility(navTabFastLog, false);
+        setVisibility(navTabInventory, false);
+        setVisibility(navTabAdmin, false);
       } else {
-        btnLoginModal.classList.add('hidden');
-        userProfileBadge.classList.remove('hidden');
-        userProfileBadge.classList.add('flex');
+        setVisibility(btnLoginModal, false);
+        setVisibility(userProfileBadge, true, 'flex');
+        setVisibility(btnExportExcel, true, 'flex');
+
         navUserName.innerText = currentUser.displayName;
         navUserRole.innerText = `ROLE: ${currentUser.role} (${currentUser.staffId})`;
-
-        // แสดงปุ่ม Export Excel เมื่อเข้าสู่ระบบด้วย PIN (ทุกสิทธิ์)
-        btnExportExcel.classList.remove('hidden');
-
         document.getElementById('formResponderBadge').innerText = `${currentUser.displayName} [${currentUser.staffId}]`;
 
         if (currentUser.role === 'staff') {
@@ -1018,45 +1027,55 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-user-nurse mr-1"></i> เจ้าหน้าที่ (Staff)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-lock-open text-emerald-400"></i> โหมดเจ้าหน้าที่: แสดงข้อมูลชื่อและเบอร์โทรศัพท์จริงสำหรับการรักษา';
 
-          navTabFastLog.classList.remove('hidden');
-          navTabInventory.classList.remove('hidden');
-          navTabAdmin.classList.add('hidden');
+          // เจ้าหน้าที่: เปิดแท็บ 2, 3 และปิดแท็บ 4
+          setVisibility(navTabFastLog, true, 'flex');
+          setVisibility(navTabInventory, true, 'flex');
+          setVisibility(navTabAdmin, false);
 
-          const tabAdminSection = document.getElementById('tabAdmin');
-          if (tabAdminSection && !tabAdminSection.classList.contains('hidden')) {
-            switchTab('tabDashboard');
-          }
         } else if (currentUser.role === 'marketing') {
           roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-blue-950 text-blue-300 border-blue-700';
           roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดการตลาด: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
-          navTabFastLog.classList.add('hidden');
-          navTabInventory.classList.add('hidden');
-          navTabAdmin.classList.add('hidden');
+          // การตลาด: ดูเฉพาะแดชบอร์ด
+          setVisibility(navTabFastLog, false);
+          setVisibility(navTabInventory, false);
+          setVisibility(navTabAdmin, false);
+
         } else if (currentUser.role === 'admin') {
           roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-purple-950 text-purple-300 border-purple-700';
           roleBadge.innerHTML = '<i class="fa-solid fa-shield-cat mr-1"></i> แอดมิน (Super Admin)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-unlock text-purple-400"></i> สิทธิ์สูงสุด (Super Admin): เข้าถึงข้อมูลและแก้ไขได้ทุกระบบ';
 
-          navTabFastLog.classList.remove('hidden');
-          navTabInventory.classList.remove('hidden');
-          navTabAdmin.classList.remove('hidden');
+          // แอดมิน: เปิดทุกแท็บ
+          setVisibility(navTabFastLog, true, 'flex');
+          setVisibility(navTabInventory, true, 'flex');
+          setVisibility(navTabAdmin, true, 'flex');
         }
       }
     }
 
     function switchTab(tabId) {
-      if (currentUser.role === 'staff' && tabId === 'tabAdmin') {
+      if ((currentUser.role === 'public' || currentUser.role === 'staff' || currentUser.role === 'marketing') && tabId === 'tabAdmin') {
+        tabId = 'tabDashboard';
+      }
+      if (currentUser.role === 'public' && (tabId === 'tabFastLog' || tabId === 'tabInventory')) {
         tabId = 'tabDashboard';
       }
 
       ['tabDashboard', 'tabFastLog', 'tabInventory', 'tabAdmin'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
+        if (el) {
+          el.classList.add('hidden');
+          el.style.display = 'none';
+        }
       });
+
       const activeEl = document.getElementById(tabId);
-      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeEl) {
+        activeEl.classList.remove('hidden');
+        activeEl.style.display = 'block';
+      }
 
       const mapping = {
         'tabDashboard': 'navTabDashboard',
@@ -1068,9 +1087,9 @@
         const btn = document.getElementById(btnId);
         if (btn) {
           if (secId === tabId) {
-            btn.className = 'tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap';
+            btn.className = 'tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 items-center gap-2 whitespace-nowrap';
           } else {
-            btn.className = 'tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap';
+            btn.className = 'tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 items-center gap-2 whitespace-nowrap';
           }
         }
       });
