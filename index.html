@@ -22,6 +22,8 @@
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
+    /* บังคับซ่อนแท็บและองค์ประกอบเมื่อมีคลาส hidden ไม่ให้โดน flex ทับ */
+    .hidden { display: none !important; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
@@ -420,7 +422,7 @@
         <i class="fa-solid fa-key"></i>
       </div>
       <h3 class="text-lg font-bold font-heading text-white">เข้าสู่ระบบด้วยรหัส PIN</h3>
-      <p class="text-xs text-slate-400 mt-1 mb-5">ระบุรหัส PIN 4 หลักของท่านเพื่อปลดล็อกสิทธิ์</p>
+      <p class="text-xs text-slate-400 mt-1 mb-5">ระบุรหัส PIN ของท่านเพื่อปลดล็อกสิทธิ์</p>
 
       <div class="mb-4">
         <input type="password" id="inputPin" maxlength="6" placeholder="• • • •" class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 text-center text-2xl tracking-[0.5em] font-mono text-emerald-400 focus:outline-none focus:border-emerald-500">
@@ -451,9 +453,29 @@
       currentInventory: []
     };
 
+    // แปลงเวลาให้แสดงผลเฉพาะ HH:mm
+    function formatDisplayTime(timeVal) {
+      if (!timeVal || timeVal === '-' || timeVal === '') return '-';
+      const str = String(timeVal).trim();
+      
+      // กรณี Google Sheets ส่งมาเป็น ISO เช่น 1899-12-30T04:01:56.000Z
+      if (str.includes('T')) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mm = String(d.getMinutes()).padStart(2, '0');
+          return `${hh}:${mm} น.`;
+        }
+      }
+      return str.length === 5 ? `${str} น.` : str;
+    }
+
     // เริ่มต้นระบบ
     window.addEventListener('DOMContentLoaded', () => {
-      // ตรวจสอบ Session เดิม
+      // 1. บังคับให้อยู่แท็บ Dashboard เสมอ
+      switchTab('tabDashboard');
+
+      // 2. ตรวจสอบ Session เดิม
       const savedUser = sessionStorage.getItem('firstAidUser');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -531,9 +553,11 @@
       // จัดการตัวเลือก Location ตาม Zones ของงาน
       const locSelect = document.getElementById('inpLocation');
       locSelect.innerHTML = '<option value="">-- เลือกจุดประจำการ --</option>';
-      currentEvt.zones.forEach(z => {
-        locSelect.innerHTML += `<option value="${z}">${z}</option>`;
-      });
+      if (currentEvt.zones) {
+        currentEvt.zones.forEach(z => {
+          locSelect.innerHTML += `<option value="${z}">${z}</option>`;
+        });
+      }
 
       // ตรวจสอบวันปิดรับข้อมูล (+2 วัน)
       enforceEventLock(currentEvt.is_closed);
@@ -704,7 +728,7 @@
         return `
           <tr class="hover:bg-slate-800/50 transition">
             <td class="py-2.5 px-3 font-mono font-medium text-emerald-400">${c.record_id}</td>
-            <td class="py-2.5 px-3">${c.incident_time}</td>
+            <td class="py-2.5 px-3 font-mono">${formatDisplayTime(c.incident_time)}</td>
             <td class="py-2.5 px-3">${c.location}</td>
             <td class="py-2.5 px-3">
               <div class="font-medium text-slate-200">${c.patient_name}</div>
@@ -729,7 +753,7 @@
       const select = document.getElementById('invRecordSelect');
       select.innerHTML = '<option value="">-- เลือกเคสที่ต้องการเติมยา --</option>';
       systemData.currentCases.forEach(c => {
-        select.innerHTML += `<option value="${c.record_id}">[${c.record_id}] ${c.incident_time} - ${c.patient_name} (${c.chief_complaint})</option>`;
+        select.innerHTML += `<option value="${c.record_id}">[${c.record_id}] ${formatDisplayTime(c.incident_time)} - ${c.patient_name} (${c.chief_complaint})</option>`;
       });
     }
 
@@ -761,7 +785,7 @@
       box.innerHTML = activeInventoryList.map((item, idx) => `
         <div class="flex items-center gap-2">
           <input type="text" value="${item.name}" placeholder="ชื่อเวชภัณฑ์/ยา" onchange="activeInventoryList[${idx}].name = this.value" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
-          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white text-center">
+          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white text-center">
           <button type="button" onclick="removeInvRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       `).join('');
@@ -955,10 +979,13 @@
       if (currentUser.role === 'public') {
         btnLoginModal.classList.remove('hidden');
         userProfileBadge.classList.add('hidden');
+        userProfileBadge.classList.remove('flex');
+        
         roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-slate-700 text-slate-300 border-slate-600';
         roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
         pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
+        // ซ่อนแท็บ 2, 3, 4 สำหรับ Public เด็ดขาด
         navTabFastLog.classList.add('hidden');
         navTabInventory.classList.add('hidden');
         navTabAdmin.classList.add('hidden');
@@ -1005,7 +1032,8 @@
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
-      document.getElementById(tabId).classList.remove('hidden');
+      const activeEl = document.getElementById(tabId);
+      if (activeEl) activeEl.classList.remove('hidden');
 
       // Update button styling
       const mapping = {
