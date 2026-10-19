@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- SheetJS สำหรับ Export Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script>
     tailwind.config = {
@@ -23,7 +24,7 @@
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
-    /* กฎเหล็ก: ซ่อนเด็ดขาดเมื่อมีคลาส hidden ไม่ให้ Tailwind flex ทับได้ */
+    /* กฎเหล็ก: ป้องกันการทับคลาส hidden ของ Tailwind */
     .hidden, [hidden] { display: none !important; }
   </style>
 </head>
@@ -53,6 +54,7 @@
         </div>
       </div>
 
+      <!-- แถบเลือก Event และปุ่มล็อกอิน -->
       <div class="flex items-center flex-wrap gap-2">
         <div class="bg-slate-950/70 border border-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
           <i class="fa-regular fa-calendar-check text-emerald-400 text-sm"></i>
@@ -93,7 +95,7 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs (ซ่อนด้วย Inline Style display: none เป็นค่าตั้งต้น) -->
+  <!-- Navigation Tabs (ซ่อนเริ่มต้นด้วย inline style) -->
   <div class="bg-slate-800 border-b border-slate-700/80">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm">
       <button onclick="switchTab('tabDashboard')" id="navTabDashboard" class="tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap">
@@ -116,6 +118,7 @@
 
     <!-- TAB 1: สรุปสถิติ & ประวัติเคส -->
     <section id="tabDashboard" class="space-y-6">
+      <!-- KPI Cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
           <p class="text-xs text-slate-400">ยอดผู้รับบริการทั้งหมด</p>
@@ -146,6 +149,7 @@
         </div>
       </div>
 
+      <!-- สถิติอาการพบบ่อย Top 5 -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-md">
         <h3 class="font-heading font-semibold text-white text-base mb-4 flex items-center gap-2">
           <i class="fa-solid fa-chart-column text-emerald-400"></i> สถิติกลุ่มอาการสำคัญที่พบบ่อย (Chief Complaints)
@@ -155,6 +159,7 @@
         </div>
       </div>
 
+      <!-- ตารางประวัติบันทึกเคส (7 คอลัมน์หลัก) -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl shadow-md overflow-hidden">
         <div class="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -166,6 +171,7 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
+            <!-- ปุ่ม Export Excel (แสดงเฉพาะเมื่อเข้าสู่ระบบด้วย PIN) -->
             <button id="btnExportExcel" onclick="exportToExcel()" style="display: none;" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg border border-emerald-500 shadow transition flex items-center gap-1.5 hidden">
               <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
@@ -427,7 +433,7 @@
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxmglLV28Y_14DVcPoaflpfJjbjAs9vWfpKT7PGsFkInHM9sicjzALlxmncY32Uh5godg/exec";
 
     let currentUser = {
-      role: 'public',
+      role: 'public', // public, staff, marketing, hod, admin
       displayName: '',
       staffId: ''
     };
@@ -946,7 +952,7 @@
         const data = await res.json();
         if (data.status === 'success') {
           currentUser = {
-            role: data.role,
+            role: data.role.toLowerCase(),
             displayName: data.displayName,
             staffId: data.staffId
           };
@@ -974,7 +980,6 @@
       fetchInitialData();
     }
 
-    // ฟังก์ชันผู้ช่วยควบคุมการแสดง/ซ่อนองค์ประกอบแบบเด็ดขาด
     function setVisibility(el, show, displayType = 'block') {
       if (!el) return;
       if (show) {
@@ -986,7 +991,7 @@
       }
     }
 
-    // ควบคุม Role-Based Access Control (RBAC) อย่างเข้มงวด
+    // จัดการสิทธิ์ RBAC รวมบทบาท HOD
     function updateUserUI() {
       const roleBadge = document.getElementById('roleBadge');
       const btnLoginModal = document.getElementById('btnLoginModal');
@@ -1009,7 +1014,6 @@
         roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
         pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
-        // ปิดแท็บ 2, 3, 4 ทันทีสำหรับบุคคลทั่วไป
         setVisibility(navTabFastLog, false);
         setVisibility(navTabInventory, false);
         setVisibility(navTabAdmin, false);
@@ -1019,7 +1023,7 @@
         setVisibility(btnExportExcel, true, 'flex');
 
         navUserName.innerText = currentUser.displayName;
-        navUserRole.innerText = `ROLE: ${currentUser.role} (${currentUser.staffId})`;
+        navUserRole.innerText = `ROLE: ${currentUser.role.toUpperCase()} (${currentUser.staffId})`;
         document.getElementById('formResponderBadge').innerText = `${currentUser.displayName} [${currentUser.staffId}]`;
 
         if (currentUser.role === 'staff') {
@@ -1027,9 +1031,19 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-user-nurse mr-1"></i> เจ้าหน้าที่ (Staff)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-lock-open text-emerald-400"></i> โหมดเจ้าหน้าที่: แสดงข้อมูลชื่อและเบอร์โทรศัพท์จริงสำหรับการรักษา';
 
-          // เจ้าหน้าที่: เปิดแท็บ 2, 3 และปิดแท็บ 4
           setVisibility(navTabFastLog, true, 'flex');
           setVisibility(navTabInventory, true, 'flex');
+          setVisibility(navTabAdmin, false);
+
+        } else if (currentUser.role === 'hod') {
+          // บทบาท HOD (หัวหน้าแผนก)
+          roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-indigo-950 text-indigo-300 border-indigo-700';
+          roleBadge.innerHTML = '<i class="fa-solid fa-user-tie mr-1"></i> หัวหน้าแผนก (HOD)';
+          pdpaNoticeText.innerHTML = '<i class="fa-solid fa-chart-pie text-indigo-400"></i> โหมดบริหาร: ตรวจสอบสถิติภาพรวมและประวัติเคสจริง (Full Access)';
+
+          // HOD ซ่อนแท็บกรอกข้อมูล 2, 3 และแท็บ 4
+          setVisibility(navTabFastLog, false);
+          setVisibility(navTabInventory, false);
           setVisibility(navTabAdmin, false);
 
         } else if (currentUser.role === 'marketing') {
@@ -1037,7 +1051,6 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดการตลาด: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
-          // การตลาด: ดูเฉพาะแดชบอร์ด
           setVisibility(navTabFastLog, false);
           setVisibility(navTabInventory, false);
           setVisibility(navTabAdmin, false);
@@ -1047,7 +1060,6 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-shield-cat mr-1"></i> แอดมิน (Super Admin)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-unlock text-purple-400"></i> สิทธิ์สูงสุด (Super Admin): เข้าถึงข้อมูลและแก้ไขได้ทุกระบบ';
 
-          // แอดมิน: เปิดทุกแท็บ
           setVisibility(navTabFastLog, true, 'flex');
           setVisibility(navTabInventory, true, 'flex');
           setVisibility(navTabAdmin, true, 'flex');
@@ -1056,10 +1068,10 @@
     }
 
     function switchTab(tabId) {
-      if ((currentUser.role === 'public' || currentUser.role === 'staff' || currentUser.role === 'marketing') && tabId === 'tabAdmin') {
+      if ((currentUser.role === 'public' || currentUser.role === 'staff' || currentUser.role === 'marketing' || currentUser.role === 'hod') && tabId === 'tabAdmin') {
         tabId = 'tabDashboard';
       }
-      if (currentUser.role === 'public' && (tabId === 'tabFastLog' || tabId === 'tabInventory')) {
+      if ((currentUser.role === 'public' || currentUser.role === 'marketing' || currentUser.role === 'hod') && (tabId === 'tabFastLog' || tabId === 'tabInventory')) {
         tabId = 'tabDashboard';
       }
 
