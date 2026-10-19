@@ -50,7 +50,7 @@
               <i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)
             </span>
           </h1>
-          <p class="text-xs text-slate-400">ระบบบันทึกเวชระเบียนและจัดการเวชภัณฑ์ภาคสนาม</p>
+          <p class="text-xs text-slate-400">ระบบบันทึกเวชระเบียนและจัดการเวชภัณฑ์</p>
         </div>
       </div>
 
@@ -95,7 +95,7 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs (ซ่อนเริ่มต้นด้วย inline style) -->
+  <!-- Navigation Tabs -->
   <div class="bg-slate-800 border-b border-slate-700/80">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm">
       <button onclick="switchTab('tabDashboard')" id="navTabDashboard" class="tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap">
@@ -118,7 +118,6 @@
 
     <!-- TAB 1: สรุปสถิติ & ประวัติเคส -->
     <section id="tabDashboard" class="space-y-6">
-      <!-- KPI Cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
           <p class="text-xs text-slate-400">ยอดผู้รับบริการทั้งหมด</p>
@@ -127,13 +126,33 @@
             <span class="text-xs text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">เคส</span>
           </div>
         </div>
+
+        <!-- กล่องสัดส่วนเพศ (ไอคอน ชาย-หญิง) -->
         <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
-          <p class="text-xs text-slate-400">สัดส่วนเพศ (ชาย / หญิง)</p>
-          <div class="flex items-baseline justify-between mt-2">
-            <span id="kpiGender" class="text-xl font-bold font-heading text-white">0 / 0</span>
-            <span class="text-xs text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">คน</span>
+          <p class="text-xs text-slate-400 mb-2">สัดส่วนเพศผู้รับบริการ</p>
+          <div class="flex items-center justify-around">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 text-base">
+                <i class="fa-solid fa-mars"></i>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">ชาย</div>
+                <span id="kpiMaleCount" class="text-xl font-bold font-heading text-white">0</span>
+              </div>
+            </div>
+            <div class="h-8 w-px bg-slate-700/80"></div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 text-base">
+                <i class="fa-solid fa-venus"></i>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400">หญิง</div>
+                <span id="kpiFemaleCount" class="text-xl font-bold font-heading text-white">0</span>
+              </div>
+            </div>
           </div>
         </div>
+
         <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
           <p class="text-xs text-slate-400">ส่งต่อโรงพยาบาล (Refer)</p>
           <div class="flex items-baseline justify-between mt-2">
@@ -149,7 +168,6 @@
         </div>
       </div>
 
-      <!-- สถิติอาการพบบ่อย Top 5 -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-md">
         <h3 class="font-heading font-semibold text-white text-base mb-4 flex items-center gap-2">
           <i class="fa-solid fa-chart-column text-emerald-400"></i> สถิติกลุ่มอาการสำคัญที่พบบ่อย (Chief Complaints)
@@ -159,7 +177,6 @@
         </div>
       </div>
 
-      <!-- ตารางประวัติบันทึกเคส -->
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl shadow-md overflow-hidden">
         <div class="p-4 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -171,7 +188,6 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <!-- ปุ่ม Export Excel (แสดงเฉพาะเมื่อเข้าสู่ระบบด้วย PIN) -->
             <button id="btnExportExcel" onclick="exportToExcel()" style="display: none;" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg border border-emerald-500 shadow transition flex items-center gap-1.5 hidden">
               <i class="fa-solid fa-file-excel"></i> Export Excel
             </button>
@@ -190,7 +206,6 @@
                 <th class="py-3 px-3">เวลา</th>
                 <th class="py-3 px-3">อาการสำคัญ</th>
                 <th class="py-3 px-3">การรักษา/ปฐมพยาบาล</th>
-                <!-- คอลัมน์เวชภัณฑ์จะแทรกตรงนี้เฉพาะตอนล็อกอิน PIN -->
                 <th class="py-3 px-3">ผลการดูแล</th>
                 <th class="py-3 px-3">ผู้บันทึก</th>
               </tr>
@@ -325,32 +340,49 @@
       </div>
     </section>
 
-    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (Inventory Usage) -->
+    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (เพิ่มการแสดงประวัติเดิม) -->
     <section id="tabInventory" class="space-y-6 hidden" style="display: none;">
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
         <div class="border-b border-slate-700 pb-3 mb-4">
           <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
             <i class="fa-solid fa-box-open text-amber-400"></i> บันทึกเวชภัณฑ์ที่ใช้ย้อนหลัง
           </h2>
-          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ แล้วเพิ่มรายการยา/อุปกรณ์ที่ใช้</p>
+          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ ระบบจะแสดงประวัติเดิมเพื่อป้องกันการคีย์ซ้ำ</p>
         </div>
 
         <form id="formInventory" onsubmit="handleAddInventory(event)" class="space-y-4">
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">เลือกเคสผู้ป่วย (Record ID) *</label>
-            <select id="invRecordSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+            <select id="invRecordSelect" onchange="handleCaseSelectionChange(this.value)" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
               <option value="">-- เลือกเคสที่ต้องการเติมยา --</option>
             </select>
           </div>
 
+          <!-- กล่องแสดงประวัติเดิมที่เคยคีย์ไว้ (Existing Inventory Box) -->
+          <div id="existingInvSection" class="hidden bg-slate-950/70 border border-amber-900/50 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-clock-rotate-left"></i> ประวัติเวชภัณฑ์ที่เคยบันทึกไว้แล้วของเคสนี้:
+              </span>
+              <span id="existingCountBadge" class="text-[10px] text-slate-400">0 รายการ</span>
+            </div>
+            <div id="existingInvItemsList" class="flex flex-wrap gap-1.5 pt-1">
+              <!-- แสดงรายการยาเดิม -->
+            </div>
+          </div>
+
+          <!-- Quick Items Pills -->
           <div>
             <label class="block text-xs text-slate-400 mb-2">เวชภัณฑ์ที่ใช้บ่อย (คลิกเพื่อเพิ่มด่วน):</label>
             <div id="quickItemsContainer" class="flex flex-wrap gap-1.5"></div>
           </div>
 
+          <!-- ตารางรายการยาที่จะบันทึกใหม่ -->
           <div class="bg-slate-900 border border-slate-700/80 rounded-lg p-3">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-medium text-slate-300">รายการที่จะบันทึก:</span>
+              <span class="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-cart-plus"></i> รายการที่จะบันทึกเพิ่มในรอบนี้:
+              </span>
               <button type="button" onclick="addCustomItemRow()" class="text-xs text-emerald-400 hover:underline">
                 + เพิ่มแถวรายการเอง
               </button>
@@ -469,7 +501,7 @@
       return str;
     }
 
-    // Toggle แสดง/ซ่อน รายการเวชภัณฑ์ในตาราง
+    // Toggle แสดง/ซ่อน รายการเวชภัณฑ์ในตาราง Dashboard
     function toggleInvDetails(recordId) {
       const box = document.getElementById(`inv-box-${recordId}`);
       const btn = document.getElementById(`inv-btn-${recordId}`);
@@ -482,6 +514,38 @@
         box.classList.add('hidden');
         btn.classList.remove('bg-amber-600', 'text-white');
         btn.classList.add('bg-amber-950/70', 'text-amber-300');
+      }
+    }
+
+    // เมื่อผู้ใช้เลือกเคสในหน้า Tab 3 บันทึกเวชภัณฑ์: แสดงประวัติเดิมทันที
+    function handleCaseSelectionChange(recordId) {
+      const section = document.getElementById('existingInvSection');
+      const container = document.getElementById('existingInvItemsList');
+      const countBadge = document.getElementById('existingCountBadge');
+      
+      if (!recordId) {
+        section.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      // ค้นหารายการยาเดิมจาก systemData.currentInventory
+      const existingItems = systemData.currentInventory.filter(i => i.record_id === recordId);
+      section.classList.remove('hidden');
+
+      if (existingItems.length === 0) {
+        countBadge.innerText = '0 รายการ';
+        container.innerHTML = '<span class="text-xs text-slate-400 italic">เคสนี้ยังไม่เคยมีบันทึกการใช้เวชภัณฑ์</span>';
+      } else {
+        countBadge.innerText = `${existingItems.length} รายการ`;
+        container.innerHTML = existingItems.map(item => `
+          <span class="inline-flex items-center gap-1.5 bg-amber-950/80 border border-amber-700/80 text-amber-200 px-2.5 py-1 rounded-md text-xs">
+            <i class="fa-solid fa-check text-amber-400 text-[10px]"></i>
+            <strong>${item.item_name}</strong>
+            <span class="bg-amber-900/60 text-amber-300 px-1.5 py-0.2 rounded text-[11px] font-mono">x${item.quantity} ${item.unit || 'ชิ้น'}</span>
+            <span class="text-[10px] text-slate-400">(${item.logged_by || 'Staff'})</span>
+          </span>
+        `).join('');
       }
     }
 
@@ -673,7 +737,6 @@
       }
     }
 
-    // Render Dashboard: ซ่อน/แสดง คอลัมน์เวชภัณฑ์ตามสถานะการล็อกอิน PIN
     function renderDashboard() {
       const cases = systemData.currentCases;
       const inv = systemData.currentInventory;
@@ -683,7 +746,8 @@
 
       const males = cases.filter(c => c.gender === 'ชาย').length;
       const females = cases.filter(c => c.gender === 'หญิง').length;
-      document.getElementById('kpiGender').innerText = `${males} / ${females}`;
+      document.getElementById('kpiMaleCount').innerText = males;
+      document.getElementById('kpiFemaleCount').innerText = females;
 
       const refers = cases.filter(c => c.outcome && c.outcome.includes('ส่งต่อ')).length;
       document.getElementById('kpiRefer').innerText = refers;
@@ -716,7 +780,6 @@
         }).join('');
       }
 
-      // ปรับแต่งหัวตาราง: แทรกคอลัมน์ "เวชภัณฑ์ที่ใช้" เมื่อล็อกอิน PIN
       const theadRow = document.getElementById('caseTableHeadRow');
       if (isLoggedIn) {
         theadRow.innerHTML = `
@@ -749,7 +812,6 @@
       }
 
       tbody.innerHTML = cases.map(c => {
-        // ส่วนจัดการเวชภัณฑ์แบบปุ่มคลิกพับ-กาง
         let invTdHtml = '';
         if (isLoggedIn) {
           const usedItems = inv.filter(i => i.record_id === c.record_id);
@@ -838,30 +900,49 @@
 
     function renderInventoryDropdownCases() {
       const select = document.getElementById('invRecordSelect');
+      const prevVal = select.value;
       select.innerHTML = '<option value="">-- เลือกเคสที่ต้องการเติมยา --</option>';
       systemData.currentCases.forEach(c => {
         select.innerHTML += `<option value="${c.record_id}">[${c.record_id}] ${formatDisplayTime(c.incident_time)} - ${c.patient_name} (${c.chief_complaint})</option>`;
       });
+      if (prevVal) {
+        select.value = prevVal;
+        handleCaseSelectionChange(prevVal);
+      }
     }
 
     let activeInventoryList = [];
     function addInventoryItem(name, qty = 1) {
-      const existing = activeInventoryList.find(i => i.name === name);
-      if (existing) {
-        existing.qty += 1;
+      const recId = document.getElementById('invRecordSelect').value;
+      // ตรวจสอบกับประวัติเดิมของเคสนี้
+      if (recId) {
+        const existing = systemData.currentInventory.filter(i => i.record_id === recId);
+        const isDuplicated = existing.some(i => i.item_name.trim().toLowerCase() === name.trim().toLowerCase());
+        if (isDuplicated) {
+          const proceed = confirm(`⚠️ คำเตือน: รายการ "${name}" เคยถูกบันทึกในเคสนี้ไปแล้ว!\n\nคุณแน่ใจหรือไม่ว่าต้องการเบิก/เพิ่มรายการนี้ซ้ำอีกรอบ?`);
+          if (!proceed) return;
+        }
+      }
+
+      const inCurrentList = activeInventoryList.find(i => i.name === name);
+      if (inCurrentList) {
+        inCurrentList.qty += 1;
       } else {
         activeInventoryList.push({ name: name, qty: qty, unit: 'ชิ้น' });
       }
       renderInvRows();
     }
+
     function addCustomItemRow() {
       activeInventoryList.push({ name: '', qty: 1, unit: 'ชิ้น' });
       renderInvRows();
     }
+
     function removeInvRow(index) {
       activeInventoryList.splice(index, 1);
       renderInvRows();
     }
+
     function renderInvRows() {
       const box = document.getElementById('invItemsList');
       if (activeInventoryList.length === 0) {
@@ -871,7 +952,7 @@
       box.innerHTML = activeInventoryList.map((item, idx) => `
         <div class="flex items-center gap-2">
           <input type="text" value="${item.name}" placeholder="ชื่อเวชภัณฑ์/ยา" onchange="activeInventoryList[${idx}].name = this.value" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
-          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white text-center">
+          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white text-center">
           <button type="button" onclick="removeInvRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       `).join('');
