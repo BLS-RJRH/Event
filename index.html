@@ -7,6 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- SheetJS สำหรับ Export Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -22,7 +24,6 @@
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
-    /* บังคับซ่อนเด็ดขาดเมื่อมีคลาส hidden ไม่ให้โดน flex หรือ inline styles เขียนทับ */
     .hidden { display: none !important; }
   </style>
 </head>
@@ -63,7 +64,6 @@
         </div>
 
         <div id="authContainer">
-          <!-- สลับระหว่างปุ่ม Login และ Badge ผู้ใช้ -->
           <button id="btnLoginModal" onclick="openLoginModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-3.5 py-1.5 rounded-lg flex items-center gap-2 shadow-md transition">
             <i class="fa-solid fa-lock"></i> เข้าสู่ระบบ (PIN)
           </button>
@@ -94,7 +94,7 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs (เริ่มต้นซ่อนแท็บ 2, 3, 4 ไว้ทั้งหมด) -->
+  <!-- Navigation Tabs -->
   <div class="bg-slate-800 border-b border-slate-700/80">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm">
       <button onclick="switchTab('tabDashboard')" id="navTabDashboard" class="tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap">
@@ -169,9 +169,15 @@
               <i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA
             </p>
           </div>
-          <button onclick="fetchEventCases()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
-            <i class="fa-solid fa-rotate"></i> รีเฟรชข้อมูล
-          </button>
+          <div class="flex items-center gap-2">
+            <!-- ปุ่ม Export Excel (แสดงเฉพาะเมื่อล็อกอินด้วย PIN) -->
+            <button id="btnExportExcel" onclick="exportToExcel()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg border border-emerald-500 shadow transition flex items-center gap-1.5 hidden">
+              <i class="fa-solid fa-file-excel"></i> Export Excel
+            </button>
+            <button onclick="fetchEventCases()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-rotate"></i> รีเฟรชข้อมูล
+            </button>
+          </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -179,19 +185,17 @@
             <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-700">
               <tr>
                 <th class="py-3 px-3">รหัสเคส</th>
+                <th class="py-3 px-3">วันที่</th>
                 <th class="py-3 px-3">เวลา</th>
-                <th class="py-3 px-3">จุดประจำการ</th>
-                <th class="py-3 px-3">ผู้รับบริการ</th>
                 <th class="py-3 px-3">อาการสำคัญ</th>
                 <th class="py-3 px-3">การรักษา/ปฐมพยาบาล</th>
-                <th class="py-3 px-3">เวชภัณฑ์ที่ใช้</th>
                 <th class="py-3 px-3">ผลการดูแล</th>
                 <th class="py-3 px-3">ผู้บันทึก</th>
               </tr>
             </thead>
             <tbody id="caseTableBody" class="divide-y divide-slate-700/60 font-light">
               <tr>
-                <td colspan="9" class="text-center py-8 text-slate-500">กำลังโหลดข้อมูล...</td>
+                <td colspan="7" class="text-center py-8 text-slate-500">กำลังโหลดข้อมูล...</td>
               </tr>
             </tbody>
           </table>
@@ -215,7 +219,6 @@
         </div>
 
         <form id="formFastLog" onsubmit="handleCreateCase(event)" class="space-y-4">
-          <!-- แถวที่ 1: เวลา จุด และกลุ่มผู้ป่วย -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">เวลาเกิดเหตุ / รับบริการ *</label>
@@ -235,7 +238,6 @@
             </div>
           </div>
 
-          <!-- แถวที่ 2: เพศ และอาการสำคัญ -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">เพศ *</label>
@@ -252,7 +254,6 @@
             </div>
           </div>
 
-          <!-- แถวที่ 3: การประเมิน และการปฐมพยาบาล -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">การประเมินสภาพเบื้องต้น (Assessment) *</label>
@@ -264,7 +265,6 @@
             </div>
           </div>
 
-          <!-- แถวที่ 4: ผลลัพธ์ และหมายเหตุ -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">ผลการดูแล (Outcome) *</label>
@@ -278,7 +278,6 @@
             </div>
           </div>
 
-          <!-- Accordion: ข้อมูลระบุบุคคล & สัญญาณชีพ (Optional) -->
           <details class="bg-slate-900/60 border border-slate-700/80 rounded-lg p-3 text-sm">
             <summary class="font-medium text-xs text-slate-400 cursor-pointer hover:text-emerald-400 flex items-center justify-between">
               <span><i class="fa-solid fa-id-card-clip mr-1.5"></i> ข้อมูลระบุตัวตน & สัญญาณชีพ (เว้นว่างได้หากเร่งด่วน)</span>
@@ -312,13 +311,11 @@
             </div>
           </details>
 
-          <!-- ผู้บันทึก (ล็อกตาม Staff Login) -->
           <div class="bg-slate-900/40 border border-slate-800 rounded-lg p-3 flex items-center justify-between text-xs">
             <span class="text-slate-400">ผู้ให้การปฐมพยาบาล / บันทึกข้อมูล:</span>
             <span id="formResponderBadge" class="font-bold text-emerald-400">-</span>
           </div>
 
-          <!-- ปุ่มส่งข้อมูล -->
           <button type="submit" id="btnSubmitFastLog" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition">
             <i class="fa-solid fa-floppy-disk"></i> ยืนยันบันทึกข้อมูลเคส
           </button>
@@ -344,15 +341,11 @@
             </select>
           </div>
 
-          <!-- Quick Items Pills -->
           <div>
             <label class="block text-xs text-slate-400 mb-2">เวชภัณฑ์ที่ใช้บ่อย (คลิกเพื่อเพิ่มด่วน):</label>
-            <div id="quickItemsContainer" class="flex flex-wrap gap-1.5">
-              <!-- Render pills dynamically -->
-            </div>
+            <div id="quickItemsContainer" class="flex flex-wrap gap-1.5"></div>
           </div>
 
-          <!-- ตารางรายการยาที่จะบันทึก -->
           <div class="bg-slate-900 border border-slate-700/80 rounded-lg p-3">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-slate-300">รายการที่จะบันทึก:</span>
@@ -436,12 +429,10 @@
   </div>
 
   <script>
-    // URL Google Apps Script Web App ของคุณ
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxmglLV28Y_14DVcPoaflpfJjbjAs9vWfpKT7PGsFkInHM9sicjzALlxmncY32Uh5godg/exec";
 
-    // Application State
     let currentUser = {
-      role: 'public', // public, staff, marketing, admin
+      role: 'public',
       displayName: '',
       staffId: ''
     };
@@ -453,12 +444,10 @@
       currentInventory: []
     };
 
-    // แปลงเวลาให้แสดงผลเฉพาะ HH:mm
+    // ฟังก์ชันแปลงเวลาให้แสดงผลเฉพาะ HH:mm น.
     function formatDisplayTime(timeVal) {
       if (!timeVal || timeVal === '-' || timeVal === '') return '-';
       const str = String(timeVal).trim();
-      
-      // กรณี Google Sheets ส่งมาเป็น ISO เช่น 1899-12-30T04:01:56.000Z
       if (str.includes('T')) {
         const d = new Date(str);
         if (!isNaN(d.getTime())) {
@@ -470,21 +459,26 @@
       return str.length === 5 ? `${str} น.` : str;
     }
 
-    // เริ่มต้นระบบ
+    // ฟังก์ชันแปลงวันที่
+    function formatDisplayDate(dateVal) {
+      if (!dateVal || dateVal === '-' || dateVal === '') return '-';
+      const str = String(dateVal).trim();
+      if (str.includes('T')) {
+        return str.split('T')[0];
+      }
+      return str;
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
-      // ตรวจสอบ Session เดิม
       const savedUser = sessionStorage.getItem('firstAidUser');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
       }
-      
-      // ปรับ UI ตามสิทธิ์ และบังคับให้เริ่มต้นที่ Dashboard เสมอ
       updateUserUI();
       switchTab('tabDashboard');
       fetchInitialData();
     });
 
-    // แสดง/ซ่อน Loading
     function showLoading(msg = 'กำลังโหลดข้อมูล...') {
       document.getElementById('loadingText').innerText = msg;
       document.getElementById('loadingOverlay').classList.remove('hidden');
@@ -493,7 +487,6 @@
       document.getElementById('loadingOverlay').classList.add('hidden');
     }
 
-    // ดึงข้อมูลเริ่มต้น (Events + Dropdowns)
     async function fetchInitialData() {
       showLoading('กำลังโหลดข้อมูลกิจกรรมและตัวเลือก...');
       try {
@@ -517,12 +510,11 @@
         }
       } catch (err) {
         console.error(err);
-        alert('ไม่สามารถเชื่อมต่อกับ GAS API ได้ กรุณาตรวจสอบสิทธิ์และการ Deploy');
+        alert('ไม่สามารถเชื่อมต่อกับ GAS API ได้');
         hideLoading();
       }
     }
 
-    // ดึงข้อมูลเคสและเวชภัณฑ์ของ Event ที่เลือก
     async function fetchEventCases() {
       if (!systemData.currentEventId) return;
       showLoading('กำลังดึงข้อมูลเวชระเบียน...');
@@ -542,7 +534,6 @@
       }
     }
 
-    // สลับ Event
     function changeEvent(eventId) {
       systemData.currentEventId = eventId;
       const currentEvt = systemData.events.find(e => e.event_id === eventId);
@@ -550,7 +541,6 @@
 
       document.getElementById('formCurrentEventName').innerText = currentEvt.event_name;
 
-      // จัดการตัวเลือก Location ตาม Zones ของงาน
       const locSelect = document.getElementById('inpLocation');
       locSelect.innerHTML = '<option value="">-- เลือกจุดประจำการ --</option>';
       if (currentEvt.zones) {
@@ -559,12 +549,10 @@
         });
       }
 
-      // ตรวจสอบวันปิดรับข้อมูล (+2 วัน)
       enforceEventLock(currentEvt.is_closed);
       fetchEventCases();
     }
 
-    // กฎล็อกฟอร์มเมื่อปิดรับข้อมูล
     function enforceEventLock(isClosed) {
       const banner = document.getElementById('closedEventBanner');
       const bypassBadge = document.getElementById('adminBypassBadge');
@@ -575,7 +563,6 @@
       if (isClosed) {
         banner.classList.remove('hidden');
         if (currentUser.role === 'admin') {
-          // Admin Override
           bypassBadge.classList.remove('hidden');
           btnFastLog.disabled = false;
           btnFastLog.className = 'w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-3 rounded-lg shadow-lg flex items-center justify-center gap-2';
@@ -584,7 +571,6 @@
           btnInv.className = 'w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-2';
           enableFormFields(formFastLog, true);
         } else {
-          // Locked
           bypassBadge.classList.add('hidden');
           btnFastLog.disabled = true;
           btnFastLog.className = 'w-full bg-slate-600 text-slate-400 font-medium py-3 rounded-lg cursor-not-allowed flex items-center justify-center gap-2';
@@ -614,7 +600,6 @@
       });
     }
 
-    // Render Event Select
     function renderEventSelect() {
       const select = document.getElementById('eventSelect');
       select.innerHTML = '';
@@ -624,11 +609,9 @@
       });
     }
 
-    // Render Dropdowns จาก Google Sheets ให้ครบทุกช่อง
     function renderDropdowns() {
       const dd = systemData.dropdowns;
 
-      // 1. ดึงประเภทผู้รับบริการ (Type)
       const typeSelect = document.getElementById('inpType');
       if (typeSelect && dd.types && dd.types.length > 0) {
         typeSelect.innerHTML = '';
@@ -637,7 +620,6 @@
         });
       }
 
-      // 2. ดึงผลการดูแล (Outcome)
       const outcomeSelect = document.getElementById('inpOutcome');
       if (outcomeSelect && dd.outcomes && dd.outcomes.length > 0) {
         outcomeSelect.innerHTML = '';
@@ -646,14 +628,12 @@
         });
       }
 
-      // 3. อาการสำคัญ (Suggestions)
       const dataList = document.getElementById('complaintSuggestions');
       if (dataList && dd.complaints) {
         dataList.innerHTML = '';
         dd.complaints.forEach(c => dataList.innerHTML += `<option value="${c}">`);
       }
 
-      // 4. Quick Pills สำหรับ Inventory
       const pillsBox = document.getElementById('quickItemsContainer');
       if (pillsBox && dd.items) {
         pillsBox.innerHTML = '';
@@ -667,10 +647,9 @@
       }
     }
 
-    // Render Dashboard
+    // Render Dashboard (แสดงเฉพาะ 7 คอลัมน์ที่กำหนด)
     function renderDashboard() {
       const cases = systemData.currentCases;
-      const inv = systemData.currentInventory;
 
       document.getElementById('kpiTotalCases').innerText = cases.length;
 
@@ -681,7 +660,6 @@
       const refers = cases.filter(c => c.outcome && c.outcome.includes('ส่งต่อ')).length;
       document.getElementById('kpiRefer').innerText = refers;
 
-      // Complaint Counts
       const complaintCounts = {};
       cases.forEach(c => {
         const comp = c.chief_complaint || 'อื่นๆ';
@@ -690,7 +668,6 @@
       const sortedComp = Object.entries(complaintCounts).sort((a,b) => b[1] - a[1]);
       document.getElementById('kpiTopComplaint').innerText = sortedComp.length > 0 ? sortedComp[0][0] : '-';
 
-      // Render Bar Chart
       const statsList = document.getElementById('complaintStatsList');
       if (sortedComp.length === 0) {
         statsList.innerHTML = '<p class="text-xs text-slate-400 italic">ไม่มีข้อมูลเคสในกิจกรรมนี้</p>';
@@ -711,44 +688,80 @@
         }).join('');
       }
 
-      // Render Cases Table
+      // แสดงตาราง 7 คอลัมน์: รหัสเคส, วันที่, เวลา, อาการสำคัญ, การรักษา/ปฐมพยาบาล, ผลการดูแล, ผู้บันทึก
       const tbody = document.getElementById('caseTableBody');
       if (cases.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-6 text-slate-500">ยังไม่มีข้อมูลเคสในกิจกรรมนี้</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-500">ยังไม่มีข้อมูลเคสในกิจกรรมนี้</td></tr>';
         return;
       }
 
-      tbody.innerHTML = cases.map(c => {
-        // Items used for this case
-        const usedItems = inv.filter(i => i.record_id === c.record_id);
-        const itemsBadge = usedItems.length > 0 
-          ? usedItems.map(i => `<span class="inline-block bg-amber-950/70 border border-amber-800 text-amber-300 px-1.5 py-0.5 rounded text-[10px] mr-1 mb-1">${i.item_name} x${i.quantity}</span>`).join('')
-          : '<span class="text-slate-500">-</span>';
-
-        return `
-          <tr class="hover:bg-slate-800/50 transition">
-            <td class="py-2.5 px-3 font-mono font-medium text-emerald-400">${c.record_id}</td>
-            <td class="py-2.5 px-3 font-mono">${formatDisplayTime(c.incident_time)}</td>
-            <td class="py-2.5 px-3">${c.location}</td>
-            <td class="py-2.5 px-3">
-              <div class="font-medium text-slate-200">${c.patient_name}</div>
-              <div class="text-[10px] text-slate-400">${c.gender} ${c.age ? `(${c.age} ปี)` : ''} • ${c.contact_number}</div>
-            </td>
-            <td class="py-2.5 px-3 text-slate-200">${c.chief_complaint}</td>
-            <td class="py-2.5 px-3">${c.treatment}</td>
-            <td class="py-2.5 px-3">${itemsBadge}</td>
-            <td class="py-2.5 px-3">
-              <span class="px-2 py-0.5 rounded-full text-[10px] ${c.outcome.includes('ส่งต่อ') ? 'bg-rose-950 border border-rose-800 text-rose-300' : 'bg-emerald-950 border border-emerald-800 text-emerald-300'}">
-                ${c.outcome}
-              </span>
-            </td>
-            <td class="py-2.5 px-3 text-slate-400 text-[11px]">${c.responder_name || '-'}</td>
-          </tr>
-        `;
-      }).join('');
+      tbody.innerHTML = cases.map(c => `
+        <tr class="hover:bg-slate-800/50 transition border-b border-slate-800">
+          <td class="py-2.5 px-3 font-mono font-medium text-emerald-400">${c.record_id}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">${formatDisplayDate(c.incident_date)}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">${formatDisplayTime(c.incident_time)}</td>
+          <td class="py-2.5 px-3 text-slate-200 font-medium">${c.chief_complaint}</td>
+          <td class="py-2.5 px-3 text-slate-300">${c.treatment}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] ${c.outcome && c.outcome.includes('ส่งต่อ') ? 'bg-rose-950 border border-rose-800 text-rose-300' : 'bg-emerald-950 border border-emerald-800 text-emerald-300'}">
+              ${c.outcome}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-slate-400 text-[11px]">${c.responder_name || '-'}</td>
+        </tr>
+      `).join('');
     }
 
-    // Populate Case Dropdown for Inventory
+    // ฟังก์ชัน Export ข้อมูลเป็น Excel (.xlsx)
+    function exportToExcel() {
+      if (!systemData.currentCases || systemData.currentCases.length === 0) {
+        alert('ไม่มีข้อมูลเคสสำหรับส่งออกเป็น Excel');
+        return;
+      }
+
+      const currentEvt = systemData.events.find(e => e.event_id === systemData.currentEventId);
+      const eventName = currentEvt ? currentEvt.event_name.replace(/[^a-zA-Z0-9ก-๙]/g, '_') : 'FirstAidReport';
+      const todayStr = new Date().toISOString().split('T')[0];
+      const fileName = `${eventName}_${todayStr}.xlsx`;
+
+      // จัดรูปแบบข้อมูลสำหรับใส่ใน Sheet
+      const excelRows = systemData.currentCases.map((c, idx) => {
+        const usedItems = systemData.currentInventory.filter(i => i.record_id === c.record_id);
+        const itemsText = usedItems.map(i => `${i.item_name} x${i.quantity}`).join(', ') || '-';
+
+        return {
+          'ลำดับ': idx + 1,
+          'รหัสเคส': c.record_id,
+          'วันที่': formatDisplayDate(c.incident_date),
+          'เวลา': formatDisplayTime(c.incident_time),
+          'จุดประจำการ': c.location,
+          'ประเภทผู้รับบริการ': c.type,
+          'เพศ': c.gender,
+          'อายุ': c.age || '-',
+          'ชื่อ-นามสกุล': c.patient_name || '-',
+          'เบอร์โทรศัพท์': c.contact_number || '-',
+          'อาการสำคัญ': c.chief_complaint,
+          'การประเมินสภาพ': c.assessment,
+          'การรักษา/ปฐมพยาบาล': c.treatment,
+          'เวชภัณฑ์ที่ใช้': itemsText,
+          'ผลการดูแล': c.outcome,
+          'หมายเหตุ': c.remarks,
+          'ความดันโลหิต (BP)': c.vitals_bp,
+          'ชีพจร (PR)': c.vitals_pr,
+          'ออกซิเจน (SpO2)': c.vitals_spo2,
+          'ผู้บันทึก': c.responder_name,
+          'Staff ID': c.staff_id
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "เวชระเบียน");
+
+      // ดาวน์โหลดไฟล์ Excel
+      XLSX.writeFile(workbook, fileName);
+    }
+
     function renderInventoryDropdownCases() {
       const select = document.getElementById('invRecordSelect');
       select.innerHTML = '<option value="">-- เลือกเคสที่ต้องการเติมยา --</option>';
@@ -757,7 +770,6 @@
       });
     }
 
-    // Dynamic Inventory Rows
     let activeInventoryList = [];
     function addInventoryItem(name, qty = 1) {
       const existing = activeInventoryList.find(i => i.name === name);
@@ -791,7 +803,6 @@
       `).join('');
     }
 
-    // Submit: Fast Log
     async function handleCreateCase(e) {
       e.preventDefault();
       showLoading('กำลังบันทึกเวชระเบียนลง Google Sheets...');
@@ -841,7 +852,6 @@
       }
     }
 
-    // Submit: Inventory
     async function handleAddInventory(e) {
       e.preventDefault();
       const recId = document.getElementById('invRecordSelect').value;
@@ -880,7 +890,6 @@
       }
     }
 
-    // Submit: Create Event
     async function handleCreateEvent(e) {
       e.preventDefault();
       showLoading('กำลังสร้างกิจกรรมใหม่...');
@@ -914,7 +923,6 @@
       }
     }
 
-    // Authentication (PIN)
     function openLoginModal() {
       document.getElementById('inputPin').value = '';
       document.getElementById('loginModal').classList.remove('hidden');
@@ -944,7 +952,6 @@
           sessionStorage.setItem('firstAidUser', JSON.stringify(currentUser));
           closeLoginModal();
           
-          // ปรับ UI ทันที และดีดไปหน้า Dashboard
           updateUserUI();
           switchTab('tabDashboard');
           fetchInitialData();
@@ -966,7 +973,6 @@
       fetchInitialData();
     }
 
-    // ควบคุมการแสดงผลตามสิทธิ์ของผู้ใช้งาน (RBAC)
     function updateUserUI() {
       const roleBadge = document.getElementById('roleBadge');
       const btnLoginModal = document.getElementById('btnLoginModal');
@@ -974,6 +980,7 @@
       const navUserName = document.getElementById('navUserName');
       const navUserRole = document.getElementById('navUserRole');
       const pdpaNoticeText = document.getElementById('pdpaNoticeText');
+      const btnExportExcel = document.getElementById('btnExportExcel');
 
       const navTabFastLog = document.getElementById('navTabFastLog');
       const navTabInventory = document.getElementById('navTabInventory');
@@ -984,11 +991,13 @@
         userProfileBadge.classList.add('hidden');
         userProfileBadge.classList.remove('flex');
         
+        // ซ่อนปุ่ม Export Excel เมื่อไม่ได้เข้าสู่ระบบ
+        btnExportExcel.classList.add('hidden');
+
         roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-slate-700 text-slate-300 border-slate-600';
         roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
         pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
-        // ปิดการมองเห็นแท็บ 2, 3, 4 สำหรับ Public
         navTabFastLog.classList.add('hidden');
         navTabInventory.classList.add('hidden');
         navTabAdmin.classList.add('hidden');
@@ -999,6 +1008,9 @@
         navUserName.innerText = currentUser.displayName;
         navUserRole.innerText = `ROLE: ${currentUser.role} (${currentUser.staffId})`;
 
+        // แสดงปุ่ม Export Excel เมื่อเข้าสู่ระบบด้วย PIN (ทุกสิทธิ์)
+        btnExportExcel.classList.remove('hidden');
+
         document.getElementById('formResponderBadge').innerText = `${currentUser.displayName} [${currentUser.staffId}]`;
 
         if (currentUser.role === 'staff') {
@@ -1006,17 +1018,14 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-user-nurse mr-1"></i> เจ้าหน้าที่ (Staff)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-lock-open text-emerald-400"></i> โหมดเจ้าหน้าที่: แสดงข้อมูลชื่อและเบอร์โทรศัพท์จริงสำหรับการรักษา';
 
-          // สิทธิ์ Staff: แสดงเฉพาะ 2 และ 3 ส่วนแท็บ 4 (Admin) ต้องซ่อนเด็ดขาด
           navTabFastLog.classList.remove('hidden');
           navTabInventory.classList.remove('hidden');
-          navTabAdmin.classList.add('hidden'); // ซ่อนแท็บ Admin เด็ดขาด
+          navTabAdmin.classList.add('hidden');
 
-          // ถ้าหน้าจอปัจจุบันเป็นแท็บ Admin ให้ย้ายไป Dashboard ทันที
           const tabAdminSection = document.getElementById('tabAdmin');
           if (tabAdminSection && !tabAdminSection.classList.contains('hidden')) {
             switchTab('tabDashboard');
           }
-
         } else if (currentUser.role === 'marketing') {
           roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-blue-950 text-blue-300 border-blue-700';
           roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';
@@ -1030,7 +1039,6 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-shield-cat mr-1"></i> แอดมิน (Super Admin)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-unlock text-purple-400"></i> สิทธิ์สูงสุด (Super Admin): เข้าถึงข้อมูลและแก้ไขได้ทุกระบบ';
 
-          // แอดมินแสดงครบทุกแท็บ
           navTabFastLog.classList.remove('hidden');
           navTabInventory.classList.remove('hidden');
           navTabAdmin.classList.remove('hidden');
@@ -1038,9 +1046,7 @@
       }
     }
 
-    // Switch Tabs
     function switchTab(tabId) {
-      // ตรวจสอบความปลอดภัย: ถ้าเป็น Staff แล้วพยายามเข้าแท็บ tabAdmin ให้ดีดกลับทันที
       if (currentUser.role === 'staff' && tabId === 'tabAdmin') {
         tabId = 'tabDashboard';
       }
@@ -1052,7 +1058,6 @@
       const activeEl = document.getElementById(tabId);
       if (activeEl) activeEl.classList.remove('hidden');
 
-      // ปรับแต่งสีปุ่มแท็บ
       const mapping = {
         'tabDashboard': 'navTabDashboard',
         'tabFastLog': 'navTabFastLog',
