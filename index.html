@@ -22,7 +22,7 @@
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
-    /* บังคับซ่อนแท็บและองค์ประกอบเมื่อมีคลาส hidden ไม่ให้โดน flex ทับ */
+    /* บังคับซ่อนเด็ดขาดเมื่อมีคลาส hidden ไม่ให้โดน flex หรือ inline styles เขียนทับ */
     .hidden { display: none !important; }
   </style>
 </head>
@@ -94,7 +94,7 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs -->
+  <!-- Navigation Tabs (เริ่มต้นซ่อนแท็บ 2, 3, 4 ไว้ทั้งหมด) -->
   <div class="bg-slate-800 border-b border-slate-700/80">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm">
       <button onclick="switchTab('tabDashboard')" id="navTabDashboard" class="tab-btn px-4 py-3 font-medium border-b-2 border-emerald-400 text-emerald-400 flex items-center gap-2 whitespace-nowrap">
@@ -472,15 +472,15 @@
 
     // เริ่มต้นระบบ
     window.addEventListener('DOMContentLoaded', () => {
-      // 1. บังคับให้อยู่แท็บ Dashboard เสมอ
-      switchTab('tabDashboard');
-
-      // 2. ตรวจสอบ Session เดิม
+      // ตรวจสอบ Session เดิม
       const savedUser = sessionStorage.getItem('firstAidUser');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
       }
+      
+      // ปรับ UI ตามสิทธิ์ และบังคับให้เริ่มต้นที่ Dashboard เสมอ
       updateUserUI();
+      switchTab('tabDashboard');
       fetchInitialData();
     });
 
@@ -943,7 +943,10 @@
           };
           sessionStorage.setItem('firstAidUser', JSON.stringify(currentUser));
           closeLoginModal();
+          
+          // ปรับ UI ทันที และดีดไปหน้า Dashboard
           updateUserUI();
+          switchTab('tabDashboard');
           fetchInitialData();
         } else {
           alert('❌ ' + data.message);
@@ -963,7 +966,7 @@
       fetchInitialData();
     }
 
-    // Update UI based on User Role
+    // ควบคุมการแสดงผลตามสิทธิ์ของผู้ใช้งาน (RBAC)
     function updateUserUI() {
       const roleBadge = document.getElementById('roleBadge');
       const btnLoginModal = document.getElementById('btnLoginModal');
@@ -985,7 +988,7 @@
         roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
         pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
 
-        // ซ่อนแท็บ 2, 3, 4 สำหรับ Public เด็ดขาด
+        // ปิดการมองเห็นแท็บ 2, 3, 4 สำหรับ Public
         navTabFastLog.classList.add('hidden');
         navTabInventory.classList.add('hidden');
         navTabAdmin.classList.add('hidden');
@@ -1003,9 +1006,17 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-user-nurse mr-1"></i> เจ้าหน้าที่ (Staff)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-lock-open text-emerald-400"></i> โหมดเจ้าหน้าที่: แสดงข้อมูลชื่อและเบอร์โทรศัพท์จริงสำหรับการรักษา';
 
+          // สิทธิ์ Staff: แสดงเฉพาะ 2 และ 3 ส่วนแท็บ 4 (Admin) ต้องซ่อนเด็ดขาด
           navTabFastLog.classList.remove('hidden');
           navTabInventory.classList.remove('hidden');
-          navTabAdmin.classList.add('hidden');
+          navTabAdmin.classList.add('hidden'); // ซ่อนแท็บ Admin เด็ดขาด
+
+          // ถ้าหน้าจอปัจจุบันเป็นแท็บ Admin ให้ย้ายไป Dashboard ทันที
+          const tabAdminSection = document.getElementById('tabAdmin');
+          if (tabAdminSection && !tabAdminSection.classList.contains('hidden')) {
+            switchTab('tabDashboard');
+          }
+
         } else if (currentUser.role === 'marketing') {
           roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-blue-950 text-blue-300 border-blue-700';
           roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';
@@ -1019,6 +1030,7 @@
           roleBadge.innerHTML = '<i class="fa-solid fa-shield-cat mr-1"></i> แอดมิน (Super Admin)';
           pdpaNoticeText.innerHTML = '<i class="fa-solid fa-unlock text-purple-400"></i> สิทธิ์สูงสุด (Super Admin): เข้าถึงข้อมูลและแก้ไขได้ทุกระบบ';
 
+          // แอดมินแสดงครบทุกแท็บ
           navTabFastLog.classList.remove('hidden');
           navTabInventory.classList.remove('hidden');
           navTabAdmin.classList.remove('hidden');
@@ -1028,6 +1040,11 @@
 
     // Switch Tabs
     function switchTab(tabId) {
+      // ตรวจสอบความปลอดภัย: ถ้าเป็น Staff แล้วพยายามเข้าแท็บ tabAdmin ให้ดีดกลับทันที
+      if (currentUser.role === 'staff' && tabId === 'tabAdmin') {
+        tabId = 'tabDashboard';
+      }
+
       ['tabDashboard', 'tabFastLog', 'tabInventory', 'tabAdmin'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -1035,7 +1052,7 @@
       const activeEl = document.getElementById(tabId);
       if (activeEl) activeEl.classList.remove('hidden');
 
-      // Update button styling
+      // ปรับแต่งสีปุ่มแท็บ
       const mapping = {
         'tabDashboard': 'navTabDashboard',
         'tabFastLog': 'navTabFastLog',
