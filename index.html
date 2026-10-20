@@ -338,14 +338,14 @@
       </div>
     </section>
 
-    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (มีกล่อง Search Filter + เพิ่มเวชภัณฑ์ใหม่ด่วน) -->
+    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (Clean UI: มีเฉพาะช่องค้นหาแบบ Floating Autocomplete) -->
     <section id="tabInventory" class="space-y-6 hidden" style="display: none;">
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
         <div class="border-b border-slate-700 pb-3 mb-4">
           <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
             <i class="fa-solid fa-box-open text-amber-400"></i> บันทึกเวชภัณฑ์ที่ใช้ย้อนหลัง
           </h2>
-          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ ระบบจะแสดงประวัติเดิม สามารถค้นหาหรือเพิ่มเวชภัณฑ์ใหม่ได้ทันที</p>
+          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ พิมพ์ค้นหาเวชภัณฑ์ หรือเพิ่มเวชภัณฑ์ใหม่ได้ทันที</p>
         </div>
 
         <form id="formInventory" onsubmit="handleAddInventory(event)" class="space-y-4">
@@ -362,30 +362,31 @@
               <span class="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
                 <i class="fa-solid fa-clock-rotate-left"></i> ประวัติเวชภัณฑ์ที่เคยบันทึกไว้แล้วของเคสนี้:
               </span>
-              <span id="existingCountBadge" class="text-[10px] text-slate-400">0 รายการ</span>
+              <span id="existingCountBadge" class="text-[10px] text-slate-400 font-mono">0 รายการ</span>
             </div>
             <div id="existingInvItemsList" class="flex flex-wrap gap-1.5 pt-1"></div>
           </div>
 
-          <!-- ส่วนค้นหาและเลือกเวชภัณฑ์ที่ใช้บ่อย (Search Filter) -->
-          <div class="bg-slate-900/60 border border-slate-700/80 rounded-lg p-3">
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-xs font-medium text-slate-300">
-                <i class="fa-solid fa-magnifying-glass text-amber-400 mr-1"></i> เวชภัณฑ์ที่ใช้บ่อย (ค้นหา / คลิกเพื่อเพิ่มด่วน):
-              </label>
-              <span id="quickItemCount" class="text-[10px] text-slate-400 font-mono"></span>
+          <!-- ช่องค้นหาเวชภัณฑ์ (In-Memory Filter + Floating Dropdown) -->
+          <div class="relative">
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">
+              <i class="fa-solid fa-magnifying-glass text-amber-400 mr-1"></i> ค้นหาเวชภัณฑ์ / พิมพ์เพื่อเพิ่มรายการ:
+            </label>
+            <div class="relative">
+              <input type="text" id="invSearchFilter" 
+                     oninput="handleFilterQuickItems(this.value)" 
+                     onfocus="handleFilterQuickItems(this.value)"
+                     placeholder="พิมพ์ชื่อยา/เวชภัณฑ์ เช่น Gauze, Paracetamol, NSS..." 
+                     autocomplete="off"
+                     class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-8 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 placeholder-slate-500 transition">
+              <i class="fa-solid fa-filter absolute left-3 top-3.5 text-slate-500 text-xs"></i>
+              <button type="button" onclick="clearSearchFilter()" id="btnClearSearch" class="hidden absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
 
-            <!-- ช่อง Filter ค้นหาแบบ Real-time -->
-            <div class="relative mb-2.5">
-              <input type="text" id="invSearchFilter" oninput="handleFilterQuickItems(this.value)" 
-                     placeholder="พิมพ์ชื่อเวชภัณฑ์เพื่อค้นหา..." 
-                     class="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-slate-500">
-              <i class="fa-solid fa-filter absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
-            </div>
-
-            <!-- คอนเทนเนอร์แสดงผลลัพธ์เวชภัณฑ์ / ปุ่มเพิ่มเวชภัณฑ์ใหม่ -->
-            <div id="quickItemsContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
+            <!-- กล่องผลลัพธ์ลอย (Floating Autocomplete Box) ไม่ดัน layout ด้านล่าง -->
+            <div id="quickItemsContainer" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-slate-950/95 border border-slate-700 rounded-xl shadow-2xl z-30 max-h-60 overflow-y-auto backdrop-blur-sm divide-y divide-slate-800"></div>
           </div>
 
           <!-- ตารางรายการยาที่จะบันทึกใหม่ -->
@@ -399,7 +400,7 @@
               </button>
             </div>
             <div id="invItemsList" class="space-y-2">
-              <p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ ค้นหาหรือคลิกปุ่มด้านบนเพื่อเพิ่ม</p>
+              <p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ ค้นหาจากช่องด้านบนเพื่อเลือกใส่</p>
             </div>
           </div>
 
@@ -614,6 +615,15 @@
       updateUserUI();
       switchTab('tabDashboard');
       fetchInitialData();
+
+      // ปิดกล่องผลลัพธ์ค้นหาเมื่อคลิกที่ว่างข้างนอก
+      document.addEventListener('click', (e) => {
+        const container = document.getElementById('quickItemsContainer');
+        const input = document.getElementById('invSearchFilter');
+        if (container && input && !container.contains(e.target) && e.target !== input) {
+          container.classList.add('hidden');
+        }
+      });
     });
 
     function showLoading(msg = 'กำลังโหลดข้อมูล...') {
@@ -780,70 +790,108 @@
         dataList.innerHTML = '';
         dd.complaints.forEach(c => dataList.innerHTML += `<option value="${c}">`);
       }
-
-      // แสดงเวชภัณฑ์ที่ใช้บ่อยเริ่มต้น (ทั้งหมด)
-      handleFilterQuickItems('');
     }
 
-    // ฟังก์ชัน Filter ค้นหาเวชภัณฑ์แบบ Real-time และแสดงปุ่มเพิ่มหากค้นหาไม่เจอ
+    // ฟังก์ชันกรองเวชภัณฑ์ใน Memory แล้วแสดงผลเป็น Floating Dropdown
     function handleFilterQuickItems(keyword) {
-      const pillsBox = document.getElementById('quickItemsContainer');
-      const countEl = document.getElementById('quickItemCount');
-      if (!pillsBox) return;
+      const container = document.getElementById('quickItemsContainer');
+      const btnClear = document.getElementById('btnClearSearch');
+      if (!container) return;
 
-      const cleanKey = keyword.trim().toLowerCase();
+      const cleanKey = keyword.trim();
+      const lowerKey = cleanKey.toLowerCase();
       const allItems = systemData.dropdowns.items || [];
-      
-      const filtered = cleanKey 
-        ? allItems.filter(item => item.toLowerCase().includes(cleanKey))
-        : allItems;
 
-      if (countEl) {
-        countEl.innerText = `${filtered.length} รายการ`;
+      if (cleanKey.length > 0) {
+        btnClear.classList.remove('hidden');
+      } else {
+        btnClear.classList.add('hidden');
       }
 
+      // หากยังไม่ได้พิมพ์อะไร ให้แสดงรายการทั้งหมด (หรือรายการแนะนำ)
+      const filtered = lowerKey 
+        ? allItems.filter(item => item.toLowerCase().includes(lowerKey))
+        : allItems;
+
+      container.classList.remove('hidden');
+
       if (filtered.length > 0) {
-        pillsBox.innerHTML = filtered.map(it => `
-          <button type="button" onclick="addInventoryItem('${escapeHtml(it)}', 1)" 
-                  class="text-xs bg-slate-800 hover:bg-amber-900/60 hover:text-amber-200 border border-slate-600 text-slate-300 px-2.5 py-1 rounded-md transition flex items-center gap-1 shadow-sm">
-            <i class="fa-solid fa-plus text-[10px] text-amber-400"></i> ${escapeHtml(it)}
+        let html = `
+          <div class="px-3 py-1.5 text-[11px] text-slate-400 bg-slate-900/90 font-medium flex justify-between items-center">
+            <span>พบ ${filtered.length} รายการ</span>
+            <span class="text-[10px] text-slate-500">คลิกเพื่อเลือก</span>
+          </div>
+        `;
+
+        html += filtered.slice(0, 15).map(it => `
+          <button type="button" onclick="selectQuickItem('${escapeHtml(it)}')" 
+                  class="w-full text-left px-3.5 py-2 text-xs text-slate-200 hover:bg-amber-900/40 hover:text-amber-200 flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-pills text-amber-400/80 text-[11px]"></i>
+              ${escapeHtml(it)}
+            </span>
+            <span class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-1.5 py-0.5 rounded font-mono">+ เลือก</span>
           </button>
         `).join('');
+
+        // ถ้าพิมพ์คำที่ยังไม่ตรงกับตัวไหนเป๊ะๆ ให้มีปุ่มเพิ่มเป็นตัวใหม่ด้านล่างสุดด้วย
+        const exactMatch = allItems.some(it => it.toLowerCase() === lowerKey);
+        if (cleanKey && !exactMatch) {
+          html += `
+            <div class="p-2 bg-slate-900">
+              <button type="button" onclick="addNewQuickItem('${escapeHtml(cleanKey)}')" 
+                      class="w-full bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/50 text-xs px-3 py-2 rounded-lg transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-plus text-xs"></i> เพิ่ม "${escapeHtml(cleanKey)}" เป็นเวชภัณฑ์ใหม่
+              </button>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
       } else {
-        // เมื่อค้นหาไม่พบ แสดงปุ่มให้เพิ่มเข้าเวชภัณฑ์ที่ใช้บ่อยทันที
-        pillsBox.innerHTML = `
-          <div class="w-full flex items-center justify-between p-2.5 bg-slate-950/70 border border-dashed border-amber-600/70 rounded-lg">
-            <span class="text-xs text-slate-400">
-              ไม่พบเวชภัณฑ์ชื่อ <strong class="text-white">"${escapeHtml(keyword)}"</strong> ในระบบ
-            </span>
-            <button type="button" onclick="addNewQuickItem('${escapeHtml(keyword)}')" 
-                    class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium px-3 py-1 rounded shadow transition flex items-center gap-1.5">
-              <i class="fa-solid fa-plus"></i> เพิ่ม "${escapeHtml(keyword)}" เข้ารายการด่วน
+        // เมื่อค้นหาไม่พบรายการใดเลย
+        container.innerHTML = `
+          <div class="p-3 text-center">
+            <p class="text-xs text-slate-400 mb-2">ไม่พบเวชภัณฑ์ชื่อ <strong class="text-white">"${escapeHtml(cleanKey)}"</strong> ในระบบ</p>
+            <button type="button" onclick="addNewQuickItem('${escapeHtml(cleanKey)}')" 
+                    class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium px-4 py-1.5 rounded-lg shadow transition inline-flex items-center gap-1.5">
+              <i class="fa-solid fa-plus"></i> เพิ่ม "${escapeHtml(cleanKey)}" เป็นเวชภัณฑ์ใหม่
             </button>
           </div>
         `;
       }
     }
 
-    // ฟังก์ชันเพิ่มไอเทมใหม่เข้าทั้ง "เวชภัณฑ์ที่ใช้บ่อย" และ "รายการที่จะบันทึกรอบนี้"
+    function clearSearchFilter() {
+      const input = document.getElementById('invSearchFilter');
+      if (input) {
+        input.value = '';
+        input.focus();
+        handleFilterQuickItems('');
+      }
+    }
+
+    // เมื่อคลิกเลือกจากผลลัพธ์ค้นหา
+    function selectQuickItem(itemName) {
+      addInventoryItem(itemName, 1);
+      const container = document.getElementById('quickItemsContainer');
+      const input = document.getElementById('invSearchFilter');
+      if (container) container.classList.add('hidden');
+      if (input) input.value = '';
+      document.getElementById('btnClearSearch').classList.add('hidden');
+    }
+
+    // เพิ่มไอเทมใหม่เข้า Memory Dropdown ทันที และใส่ลงตารางเบิกรอบนี้
     function addNewQuickItem(itemName) {
       const cleanName = itemName.trim();
       if (!cleanName) return;
 
-      // 1. นำเข้า Memory Dropdown ทันที
       if (!systemData.dropdowns.items) systemData.dropdowns.items = [];
       const exists = systemData.dropdowns.items.some(it => it.toLowerCase() === cleanName.toLowerCase());
       if (!exists) {
         systemData.dropdowns.items.push(cleanName);
       }
 
-      // 2. เคลียร์ช่อง Filter แล้วรีเฟรชปุ่ม
-      const searchInput = document.getElementById('invSearchFilter');
-      if (searchInput) searchInput.value = '';
-      handleFilterQuickItems('');
-
-      // 3. ใส่เข้าไปในตารางที่จะบันทึกรอบนี้ทันที
-      addInventoryItem(cleanName, 1);
+      selectQuickItem(cleanName);
     }
 
     function renderDashboard() {
@@ -1055,7 +1103,7 @@
     function renderInvRows() {
       const box = document.getElementById('invItemsList');
       if (activeInventoryList.length === 0) {
-        box.innerHTML = '<p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ ค้นหาหรือคลิกปุ่มด้านบนเพื่อเพิ่ม</p>';
+        box.innerHTML = '<p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ ค้นหาจากช่องด้านบนเพื่อเลือกใส่</p>';
         return;
       }
       box.innerHTML = activeInventoryList.map((item, idx) => `
@@ -1122,7 +1170,6 @@
       if (!recId) return alert('กรุณาเลือกเคสที่ต้องการเติมยา');
       if (activeInventoryList.length === 0) return alert('กรุณาระบุรายการเวชภัณฑ์อย่างน้อย 1 รายการ');
 
-      // ตรวจสอบว่ามีแถวที่ไม่ได้กรอกชื่อหรือไม่
       const invalidItem = activeInventoryList.some(i => !i.name.trim());
       if (invalidItem) return alert('กรุณาระบุชื่อเวชภัณฑ์ให้ครบทุกช่อง');
 
