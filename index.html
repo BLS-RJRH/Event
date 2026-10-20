@@ -24,7 +24,6 @@
   <style>
     body { font-family: 'Sarabun', sans-serif; }
     h1, h2, h3, h4, .font-heading { font-family: 'Kanit', sans-serif; }
-    /* กฎเหล็ก: ป้องกันการทับคลาส hidden ของ Tailwind */
     .hidden, [hidden] { display: none !important; }
   </style>
 </head>
@@ -127,7 +126,6 @@
           </div>
         </div>
 
-        <!-- กล่องสัดส่วนเพศ (ไอคอน ชาย-หญิง) -->
         <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl shadow-md">
           <p class="text-xs text-slate-400 mb-2">สัดส่วนเพศผู้รับบริการ</p>
           <div class="flex items-center justify-around">
@@ -340,14 +338,14 @@
       </div>
     </section>
 
-    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (มีปุ่มลบประวัติเดิม) -->
+    <!-- TAB 3: บันทึกเวชภัณฑ์ย้อนหลัง (มีกล่อง Search Filter + เพิ่มเวชภัณฑ์ใหม่ด่วน) -->
     <section id="tabInventory" class="space-y-6 hidden" style="display: none;">
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg max-w-3xl mx-auto">
         <div class="border-b border-slate-700 pb-3 mb-4">
           <h2 class="text-lg font-bold font-heading text-white flex items-center gap-2">
             <i class="fa-solid fa-box-open text-amber-400"></i> บันทึกเวชภัณฑ์ที่ใช้ย้อนหลัง
           </h2>
-          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ ระบบจะแสดงประวัติเดิม สามารถลบรายการที่คีย์ผิดได้</p>
+          <p class="text-xs text-slate-400">เลือกเคสที่ต้องการ ระบบจะแสดงประวัติเดิม สามารถค้นหาหรือเพิ่มเวชภัณฑ์ใหม่ได้ทันที</p>
         </div>
 
         <form id="formInventory" onsubmit="handleAddInventory(event)" class="space-y-4">
@@ -369,10 +367,25 @@
             <div id="existingInvItemsList" class="flex flex-wrap gap-1.5 pt-1"></div>
           </div>
 
-          <!-- Quick Items Pills -->
-          <div>
-            <label class="block text-xs text-slate-400 mb-2">เวชภัณฑ์ที่ใช้บ่อย (คลิกเพื่อเพิ่มด่วน):</label>
-            <div id="quickItemsContainer" class="flex flex-wrap gap-1.5"></div>
+          <!-- ส่วนค้นหาและเลือกเวชภัณฑ์ที่ใช้บ่อย (Search Filter) -->
+          <div class="bg-slate-900/60 border border-slate-700/80 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-xs font-medium text-slate-300">
+                <i class="fa-solid fa-magnifying-glass text-amber-400 mr-1"></i> เวชภัณฑ์ที่ใช้บ่อย (ค้นหา / คลิกเพื่อเพิ่มด่วน):
+              </label>
+              <span id="quickItemCount" class="text-[10px] text-slate-400 font-mono"></span>
+            </div>
+
+            <!-- ช่อง Filter ค้นหาแบบ Real-time -->
+            <div class="relative mb-2.5">
+              <input type="text" id="invSearchFilter" oninput="handleFilterQuickItems(this.value)" 
+                     placeholder="พิมพ์ชื่อเวชภัณฑ์เพื่อค้นหา..." 
+                     class="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-slate-500">
+              <i class="fa-solid fa-filter absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+            </div>
+
+            <!-- คอนเทนเนอร์แสดงผลลัพธ์เวชภัณฑ์ / ปุ่มเพิ่มเวชภัณฑ์ใหม่ -->
+            <div id="quickItemsContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
           </div>
 
           <!-- ตารางรายการยาที่จะบันทึกใหม่ -->
@@ -386,7 +399,7 @@
               </button>
             </div>
             <div id="invItemsList" class="space-y-2">
-              <p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ คลิกปุ่มด้านบนเพื่อเพิ่ม</p>
+              <p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ ค้นหาหรือคลิกปุ่มด้านบนเพื่อเพิ่ม</p>
             </div>
           </div>
 
@@ -476,6 +489,16 @@
       currentInventory: []
     };
 
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
     function formatDisplayTime(timeVal) {
       if (!timeVal || timeVal === '-' || timeVal === '') return '-';
       const str = String(timeVal).trim();
@@ -515,7 +538,7 @@
       }
     }
 
-    // ปรับปรุงการแสดงประวัติเดิมให้มีปุ่มลบ (🗑️)
+    // จัดการเปลี่ยนเคสที่เลือกใน Tab 3
     function handleCaseSelectionChange(recordId) {
       const section = document.getElementById('existingInvSection');
       const container = document.getElementById('existingInvItemsList');
@@ -538,9 +561,9 @@
         container.innerHTML = existingItems.map(item => `
           <span class="inline-flex items-center gap-1.5 bg-amber-950/80 border border-amber-700/80 text-amber-200 px-2.5 py-1 rounded-md text-xs shadow-sm">
             <i class="fa-solid fa-check text-amber-400 text-[10px]"></i>
-            <strong>${item.item_name}</strong>
+            <strong>${escapeHtml(item.item_name)}</strong>
             <span class="bg-amber-900/60 text-amber-300 px-1.5 py-0.2 rounded text-[11px] font-mono">x${item.quantity} ${item.unit || 'ชิ้น'}</span>
-            <button type="button" onclick="handleDeleteInventoryItem('${item.usage_id}', '${item.item_name}', '${recordId}')" class="ml-1 text-rose-400 hover:text-rose-200 hover:bg-rose-900/40 p-0.5 rounded transition" title="ลบรายการนี้">
+            <button type="button" onclick="handleDeleteInventoryItem('${item.usage_id}', '${escapeHtml(item.item_name)}', '${recordId}')" class="ml-1 text-rose-400 hover:text-rose-200 hover:bg-rose-900/40 p-0.5 rounded transition" title="ลบรายการนี้">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </span>
@@ -548,7 +571,7 @@
       }
     }
 
-    // ฟังก์ชันส่งคำสั่งลบรายการเวชภัณฑ์ไปยัง Google Sheets
+    // ฟังก์ชันลบรายการเวชภัณฑ์
     async function handleDeleteInventoryItem(usageId, itemName, recordId) {
       const confirmDelete = confirm(`คุณต้องการลบรายการเวชภัณฑ์ "${itemName}" ออกจากเคสนี้ใช่หรือไม่?`);
       if (!confirmDelete) return;
@@ -569,7 +592,6 @@
         const data = await res.json();
 
         if (data.status === 'success') {
-          // อัปเดตรายการใน memory ทันที
           systemData.currentInventory = systemData.currentInventory.filter(i => i.usage_id !== usageId);
           handleCaseSelectionChange(recordId);
           renderDashboard();
@@ -759,17 +781,69 @@
         dd.complaints.forEach(c => dataList.innerHTML += `<option value="${c}">`);
       }
 
+      // แสดงเวชภัณฑ์ที่ใช้บ่อยเริ่มต้น (ทั้งหมด)
+      handleFilterQuickItems('');
+    }
+
+    // ฟังก์ชัน Filter ค้นหาเวชภัณฑ์แบบ Real-time และแสดงปุ่มเพิ่มหากค้นหาไม่เจอ
+    function handleFilterQuickItems(keyword) {
       const pillsBox = document.getElementById('quickItemsContainer');
-      if (pillsBox && dd.items) {
-        pillsBox.innerHTML = '';
-        dd.items.forEach(it => {
-          pillsBox.innerHTML += `
-            <button type="button" onclick="addInventoryItem('${it}', 1)" class="text-xs bg-slate-800 hover:bg-amber-900/60 hover:text-amber-200 border border-slate-600 text-slate-300 px-2 py-1 rounded transition">
-              + ${it}
-            </button>
-          `;
-        });
+      const countEl = document.getElementById('quickItemCount');
+      if (!pillsBox) return;
+
+      const cleanKey = keyword.trim().toLowerCase();
+      const allItems = systemData.dropdowns.items || [];
+      
+      const filtered = cleanKey 
+        ? allItems.filter(item => item.toLowerCase().includes(cleanKey))
+        : allItems;
+
+      if (countEl) {
+        countEl.innerText = `${filtered.length} รายการ`;
       }
+
+      if (filtered.length > 0) {
+        pillsBox.innerHTML = filtered.map(it => `
+          <button type="button" onclick="addInventoryItem('${escapeHtml(it)}', 1)" 
+                  class="text-xs bg-slate-800 hover:bg-amber-900/60 hover:text-amber-200 border border-slate-600 text-slate-300 px-2.5 py-1 rounded-md transition flex items-center gap-1 shadow-sm">
+            <i class="fa-solid fa-plus text-[10px] text-amber-400"></i> ${escapeHtml(it)}
+          </button>
+        `).join('');
+      } else {
+        // เมื่อค้นหาไม่พบ แสดงปุ่มให้เพิ่มเข้าเวชภัณฑ์ที่ใช้บ่อยทันที
+        pillsBox.innerHTML = `
+          <div class="w-full flex items-center justify-between p-2.5 bg-slate-950/70 border border-dashed border-amber-600/70 rounded-lg">
+            <span class="text-xs text-slate-400">
+              ไม่พบเวชภัณฑ์ชื่อ <strong class="text-white">"${escapeHtml(keyword)}"</strong> ในระบบ
+            </span>
+            <button type="button" onclick="addNewQuickItem('${escapeHtml(keyword)}')" 
+                    class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium px-3 py-1 rounded shadow transition flex items-center gap-1.5">
+              <i class="fa-solid fa-plus"></i> เพิ่ม "${escapeHtml(keyword)}" เข้ารายการด่วน
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // ฟังก์ชันเพิ่มไอเทมใหม่เข้าทั้ง "เวชภัณฑ์ที่ใช้บ่อย" และ "รายการที่จะบันทึกรอบนี้"
+    function addNewQuickItem(itemName) {
+      const cleanName = itemName.trim();
+      if (!cleanName) return;
+
+      // 1. นำเข้า Memory Dropdown ทันที
+      if (!systemData.dropdowns.items) systemData.dropdowns.items = [];
+      const exists = systemData.dropdowns.items.some(it => it.toLowerCase() === cleanName.toLowerCase());
+      if (!exists) {
+        systemData.dropdowns.items.push(cleanName);
+      }
+
+      // 2. เคลียร์ช่อง Filter แล้วรีเฟรชปุ่ม
+      const searchInput = document.getElementById('invSearchFilter');
+      if (searchInput) searchInput.value = '';
+      handleFilterQuickItems('');
+
+      // 3. ใส่เข้าไปในตารางที่จะบันทึกรอบนี้ทันที
+      addInventoryItem(cleanName, 1);
     }
 
     function renderDashboard() {
@@ -851,7 +925,7 @@
         if (isLoggedIn) {
           const usedItems = inv.filter(i => i.record_id === c.record_id);
           if (usedItems.length > 0) {
-            const pills = usedItems.map(i => `<span class="inline-block bg-amber-950/80 border border-amber-800 text-amber-300 px-2 py-0.5 rounded text-[10px] mr-1 mb-1">${i.item_name} <strong>x${i.quantity}</strong></span>`).join('');
+            const pills = usedItems.map(i => `<span class="inline-block bg-amber-950/80 border border-amber-800 text-amber-300 px-2 py-0.5 rounded text-[10px] mr-1 mb-1">${escapeHtml(i.item_name)} <strong>x${i.quantity}</strong></span>`).join('');
             invTdHtml = `
               <td class="py-2.5 px-3">
                 <button type="button" id="inv-btn-${c.record_id}" onclick="toggleInvDetails('${c.record_id}')" class="bg-amber-950/70 border border-amber-800 text-amber-300 hover:bg-amber-600 hover:text-white px-2 py-1 rounded text-[11px] font-medium transition flex items-center gap-1 shadow-sm">
@@ -948,6 +1022,7 @@
 
     let activeInventoryList = [];
     function addInventoryItem(name, qty = 1) {
+      if (!name) return;
       const recId = document.getElementById('invRecordSelect').value;
       if (recId) {
         const existing = systemData.currentInventory.filter(i => i.record_id === recId);
@@ -958,7 +1033,7 @@
         }
       }
 
-      const inCurrentList = activeInventoryList.find(i => i.name === name);
+      const inCurrentList = activeInventoryList.find(i => i.name.toLowerCase() === name.toLowerCase());
       if (inCurrentList) {
         inCurrentList.qty += 1;
       } else {
@@ -980,13 +1055,13 @@
     function renderInvRows() {
       const box = document.getElementById('invItemsList');
       if (activeInventoryList.length === 0) {
-        box.innerHTML = '<p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ คลิกปุ่มด้านบนเพื่อเพิ่ม</p>';
+        box.innerHTML = '<p class="text-xs text-slate-500 italic py-2 text-center">ยังไม่มีรายการเวชภัณฑ์ ค้นหาหรือคลิกปุ่มด้านบนเพื่อเพิ่ม</p>';
         return;
       }
       box.innerHTML = activeInventoryList.map((item, idx) => `
         <div class="flex items-center gap-2">
-          <input type="text" value="${item.name}" placeholder="ชื่อเวชภัณฑ์/ยา" onchange="activeInventoryList[${idx}].name = this.value" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
-          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white text-center">
+          <input type="text" value="${escapeHtml(item.name)}" placeholder="ชื่อเวชภัณฑ์/ยา" onchange="activeInventoryList[${idx}].name = this.value" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white">
+          <input type="number" min="1" value="${item.qty}" onchange="activeInventoryList[${idx}].qty = Number(this.value)" class="w-20 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white text-center">
           <button type="button" onclick="removeInvRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash-can"></i></button>
         </div>
       `).join('');
@@ -1047,6 +1122,10 @@
       if (!recId) return alert('กรุณาเลือกเคสที่ต้องการเติมยา');
       if (activeInventoryList.length === 0) return alert('กรุณาระบุรายการเวชภัณฑ์อย่างน้อย 1 รายการ');
 
+      // ตรวจสอบว่ามีแถวที่ไม่ได้กรอกชื่อหรือไม่
+      const invalidItem = activeInventoryList.some(i => !i.name.trim());
+      if (invalidItem) return alert('กรุณาระบุชื่อเวชภัณฑ์ให้ครบทุกช่อง');
+
       showLoading('กำลังบันทึกรายการเวชภัณฑ์...');
       const payload = {
         action: 'addInventory',
@@ -1054,7 +1133,7 @@
         staff_id: currentUser.staffId,
         event_id: systemData.currentEventId,
         record_id: recId,
-        items: activeInventoryList.map(i => ({ item_name: i.name, quantity: i.qty, unit: i.unit }))
+        items: activeInventoryList.map(i => ({ item_name: i.name.trim(), quantity: i.qty, unit: i.unit }))
       };
 
       try {
