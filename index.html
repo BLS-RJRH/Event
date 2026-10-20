@@ -181,6 +181,9 @@
             <h3 class="font-heading font-semibold text-white text-base flex items-center gap-2">
               <i class="fa-solid fa-list-check text-emerald-400"></i> ทะเบียนเวชระเบียนหน่วยปฐมพยาบาล
             </h3>
+            <p id="pdpaNoticeText" class="text-xs text-slate-400 mt-0.5">
+              <i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ
+            </p>
           </div>
           <div class="flex items-center gap-2">
             <button id="btnExportExcel" onclick="exportToExcel()" style="display: none;" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg border border-emerald-500 shadow transition flex items-center gap-1.5 hidden">
@@ -487,6 +490,29 @@
       currentInventory: []
     };
 
+    // ฟังก์ชัน Fetch กลางที่ป้องกันปัญหา CORS เมื่อ POST ข้ามโดเมนจาก GitHub Pages
+    async function callGasApi(payload) {
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify(payload)
+        });
+        return await res.json();
+      } catch (err) {
+        console.error("API POST Failed, falling back to GET...", err);
+        // Fallback รองรับถ้า POST โดน CORS บล็อก
+        const params = new URLSearchParams({
+          action: payload.action,
+          payload: JSON.stringify(payload)
+        });
+        const getRes = await fetch(`${GAS_API_URL}?${params.toString()}`);
+        return await getRes.json();
+      }
+    }
+
     function escapeHtml(text) {
       if (!text) return '';
       return String(text)
@@ -520,7 +546,6 @@
       return str;
     }
 
-    // Toggle แสดง/ซ่อน รายการเวชภัณฑ์ในตาราง Dashboard
     function toggleInvDetails(recordId) {
       const box = document.getElementById(`inv-box-${recordId}`);
       const btn = document.getElementById(`inv-btn-${recordId}`);
@@ -536,7 +561,6 @@
       }
     }
 
-    // จัดการเปลี่ยนเคสที่เลือกใน Tab 3
     function handleCaseSelectionChange(recordId) {
       const section = document.getElementById('existingInvSection');
       const container = document.getElementById('existingInvItemsList');
@@ -569,7 +593,6 @@
       }
     }
 
-    // ฟังก์ชันลบรายการเวชภัณฑ์
     async function handleDeleteInventoryItem(usageId, itemName, recordId) {
       const confirmDelete = confirm(`คุณต้องการลบรายการเวชภัณฑ์ "${itemName}" ออกจากเคสนี้ใช่หรือไม่?`);
       if (!confirmDelete) return;
@@ -583,11 +606,7 @@
           usage_id: usageId
         };
 
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+        const data = await callGasApi(payload);
 
         if (data.status === 'success') {
           systemData.currentInventory = systemData.currentInventory.filter(i => i.usage_id !== usageId);
@@ -598,7 +617,7 @@
           alert('❌ ไม่สามารถลบได้: ' + data.message);
         }
       } catch (err) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
       } finally {
         hideLoading();
       }
@@ -658,7 +677,7 @@
         }
       } catch (err) {
         console.error(err);
-        alert('ไม่สามารถเชื่อมต่อกับ GAS API ได้');
+        alert('ไม่สามารถเชื่อมต่อกับ GAS API ได้: ' + err.message);
         hideLoading();
       }
     }
@@ -789,7 +808,6 @@
       }
     }
 
-    // ฟังก์ชันกรองเวชภัณฑ์ใน Memory แล้วแสดงผลเป็น Floating Dropdown
     function handleFilterQuickItems(keyword) {
       const container = document.getElementById('quickItemsContainer');
       const btnClear = document.getElementById('btnClearSearch');
@@ -805,7 +823,6 @@
         btnClear.classList.add('hidden');
       }
 
-      // หากยังไม่ได้พิมพ์อะไร ให้แสดงรายการทั้งหมด (หรือรายการแนะนำ)
       const filtered = lowerKey 
         ? allItems.filter(item => item.toLowerCase().includes(lowerKey))
         : allItems;
@@ -831,7 +848,6 @@
           </button>
         `).join('');
 
-        // ถ้าพิมพ์คำที่ยังไม่ตรงกับตัวไหนเป๊ะๆ ให้มีปุ่มเพิ่มเป็นตัวใหม่ด้านล่างสุดด้วย
         const exactMatch = allItems.some(it => it.toLowerCase() === lowerKey);
         if (cleanKey && !exactMatch) {
           html += `
@@ -845,7 +861,6 @@
         }
         container.innerHTML = html;
       } else {
-        // เมื่อค้นหาไม่พบรายการใดเลย
         container.innerHTML = `
           <div class="p-3 text-center">
             <p class="text-xs text-slate-400 mb-2">ไม่พบเวชภัณฑ์ชื่อ <strong class="text-white">"${escapeHtml(cleanKey)}"</strong> ในระบบ</p>
@@ -867,7 +882,6 @@
       }
     }
 
-    // เมื่อคลิกเลือกจากผลลัพธ์ค้นหา
     function selectQuickItem(itemName) {
       addInventoryItem(itemName, 1);
       const container = document.getElementById('quickItemsContainer');
@@ -877,7 +891,6 @@
       document.getElementById('btnClearSearch').classList.add('hidden');
     }
 
-    // เพิ่มไอเทมใหม่เข้า Memory Dropdown ทันที และใส่ลงตารางเบิกรอบนี้
     function addNewQuickItem(itemName) {
       const cleanName = itemName.trim();
       if (!cleanName) return;
@@ -1140,11 +1153,7 @@
       };
 
       try {
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+        const data = await callGasApi(payload);
         if (data.status === 'success') {
           alert('✅ บันทึกเคสเรียบร้อย! รหัสอ้างอิง: ' + data.record_id);
           document.getElementById('formFastLog').reset();
@@ -1155,7 +1164,7 @@
           alert('❌ เกิดข้อผิดพลาด: ' + data.message);
         }
       } catch (err) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
       } finally {
         hideLoading();
       }
@@ -1181,11 +1190,7 @@
       };
 
       try {
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+        const data = await callGasApi(payload);
         if (data.status === 'success') {
           alert('✅ บันทึกเวชภัณฑ์สำเร็จ!');
           activeInventoryList = [];
@@ -1196,7 +1201,7 @@
           alert('❌ ' + data.message);
         }
       } catch (err) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
       } finally {
         hideLoading();
       }
@@ -1216,11 +1221,7 @@
       };
 
       try {
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+        const data = await callGasApi(payload);
         if (data.status === 'success') {
           alert('✅ สร้างกิจกรรมใหม่เรียบร้อย!');
           fetchInitialData();
@@ -1229,7 +1230,7 @@
           alert('❌ ' + data.message);
         }
       } catch (err) {
-        alert('เกิดข้อผิดพลาด');
+        alert('เกิดข้อผิดพลาด: ' + err.message);
       } finally {
         hideLoading();
       }
@@ -1248,17 +1249,14 @@
       modal.style.display = 'none';
     }
 
+    // ฟังก์ชันล็อกอินที่รองรับ Error handling แบบละเอียด
     async function submitPinAuth() {
       const pin = document.getElementById('inputPin').value.trim();
       if (!pin) return;
 
       showLoading('กำลังตรวจสอบรหัส PIN...');
       try {
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'verifyPin', pin: pin })
-        });
-        const data = await res.json();
+        const data = await callGasApi({ action: 'verifyPin', pin: pin });
         if (data.status === 'success') {
           currentUser = {
             role: data.role.toLowerCase(),
@@ -1272,10 +1270,11 @@
           switchTab('tabDashboard');
           fetchInitialData();
         } else {
-          alert('❌ ' + data.message);
+          alert('❌ ' + (data.message || 'รหัส PIN ไม่ถูกต้อง'));
         }
       } catch (err) {
-        alert('ไม่สามารถตรวจสอบสิทธิ์ได้');
+        console.error(err);
+        alert('ไม่สามารถตรวจสอบสิทธิ์ได้: ' + err.message);
       } finally {
         hideLoading();
       }
@@ -1300,7 +1299,6 @@
       }
     }
 
-    // จัดการสิทธิ์ RBAC รวมบทบาท HOD
     function updateUserUI() {
       const roleBadge = document.getElementById('roleBadge');
       const btnLoginModal = document.getElementById('btnLoginModal');
@@ -1321,7 +1319,7 @@
 
         roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-slate-700 text-slate-300 border-slate-600';
         roleBadge.innerHTML = '<i class="fa-solid fa-eye mr-1"></i> สาธารณะ (Public)';
-        pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ: ข้อมูลชื่อและเบอร์โทรศัพท์ถูก Masked ตามมาตรฐาน PDPA';
+        pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> โหมดสาธารณะ';
 
         setVisibility(navTabFastLog, false);
         setVisibility(navTabInventory, false);
@@ -1355,7 +1353,8 @@
 
         } else if (currentUser.role === 'marketing') {
           roleBadge.className = 'text-xs px-2.5 py-0.5 rounded-full font-normal border bg-blue-950 text-blue-300 border-blue-700';
-          roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';        
+          roleBadge.innerHTML = '<i class="fa-solid fa-chart-line mr-1"></i> การตลาด (Marketing)';
+          pdpaNoticeText.innerHTML = '<i class="fa-solid fa-shield-halved text-amber-400"></i> เจ้าหน้าที่การตลาด';
 
           setVisibility(navTabFastLog, false);
           setVisibility(navTabInventory, false);
