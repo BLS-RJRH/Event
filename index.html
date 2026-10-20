@@ -503,7 +503,6 @@
         return await res.json();
       } catch (err) {
         console.error("API POST Failed, falling back to GET...", err);
-        // Fallback รองรับถ้า POST โดน CORS บล็อก
         const params = new URLSearchParams({
           action: payload.action,
           payload: JSON.stringify(payload)
@@ -511,6 +510,30 @@
         const getRes = await fetch(`${GAS_API_URL}?${params.toString()}`);
         return await getRes.json();
       }
+    }
+
+    // Helper จัดหมวดหมู่อาการสำคัญ (Chief Complaints Grouping)
+    function categorizeComplaint(text, assessment = '') {
+      const fullText = ((text || '') + ' ' + (assessment || '')).toLowerCase();
+
+      // 1. กลุ่มบาดแผล / อุบัติเหตุ / หกล้ม
+      if (/(ล้ม|แผล|ถลอก|ฟกช้ำ|ฉีกขาด|ฟาด|กระแทก|ชน|เลือด|บาดเจ็บ|บวม|wound|fall|trauma|contusion|abrasion)/i.test(fullText)) {
+        return 'บาดแผล / หกล้ม / อุบัติเหตุ';
+      }
+      // 2. กลุ่มกล้ามเนื้อ / กระดูก / ข้อ / ตะคริว
+      if (/(ปวด|เมื่อย|ตะคริว|พลิก|เคล็ด|ตึง|กล้ามเนื้อ|ข้อ|เข่า|ข้อเท้า|cramp|sprain|strain|pain|muscle)/i.test(fullText)) {
+        return 'กล้ามเนื้อ / ตะคริว / ข้อเคล็ด';
+      }
+      // 3. กลุ่มเป็นลม / หน้ามืด / อ่อนเพลีย / ภาวะจากความร้อน
+      if (/(หน้ามืด|เป็นลม|วูบ|เวียนหัว|มึน|เหนื่อย|แน่นหน้าอก|หายใจ|แดด|heat|syncope|dizzy|exhaustion)/i.test(fullText)) {
+        return 'เป็นลม / หน้ามืด / ความร้อน';
+      }
+      // 4. กลุ่มอาการทางอายุรกรรมทั่วไป
+      if (/(ไข้|ท้องเสีย|ถ่าย|ปวดท้อง|อาเจียน|คลื่นไส้|แพ้|ผื่น|คัน|fever|diarrhea|allergic)/i.test(fullText)) {
+        return 'อายุรกรรมทั่วไป / อาการป่วย';
+      }
+      
+      return 'อื่นๆ / ไม่ระบุ';
     }
 
     function escapeHtml(text) {
@@ -904,6 +927,7 @@
       selectQuickItem(cleanName);
     }
 
+    // ฟังก์ชัน Render Dashboard คำนวณตามกลุ่มอาการ
     function renderDashboard() {
       const cases = systemData.currentCases;
       const inv = systemData.currentInventory;
@@ -919,11 +943,13 @@
       const refers = cases.filter(c => c.outcome && c.outcome.includes('ส่งต่อ')).length;
       document.getElementById('kpiRefer').innerText = refers;
 
+      // จัดกลุ่มอาการสำคัญ (Categorize Grouping)
       const complaintCounts = {};
       cases.forEach(c => {
-        const comp = c.chief_complaint || 'อื่นๆ';
-        complaintCounts[comp] = (complaintCounts[comp] || 0) + 1;
+        const category = categorizeComplaint(c.chief_complaint || '', c.assessment || '');
+        complaintCounts[category] = (complaintCounts[category] || 0) + 1;
       });
+
       const sortedComp = Object.entries(complaintCounts).sort((a,b) => b[1] - a[1]);
       document.getElementById('kpiTopComplaint').innerText = sortedComp.length > 0 ? sortedComp[0][0] : '-';
 
@@ -931,16 +957,16 @@
       if (sortedComp.length === 0) {
         statsList.innerHTML = '<p class="text-xs text-slate-400 italic">ไม่มีข้อมูลเคสในกิจกรรมนี้</p>';
       } else {
-        statsList.innerHTML = sortedComp.slice(0, 5).map(([name, count]) => {
+        statsList.innerHTML = sortedComp.map(([name, count]) => {
           const pct = Math.round((count / cases.length) * 100);
           return `
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-300">${name}</span>
+                <span class="text-slate-300 font-medium">${name}</span>
                 <span class="text-slate-400 font-mono">${count} เคส (${pct}%)</span>
               </div>
-              <div class="w-full bg-slate-900 rounded-full h-2">
-                <div class="bg-emerald-500 h-2 rounded-full" style="width: ${pct}%"></div>
+              <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+                <div class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
               </div>
             </div>
           `;
@@ -1045,6 +1071,7 @@
           'อายุ': c.age || '-',
           'ชื่อ-นามสกุล': c.patient_name || '-',
           'เบอร์โทรศัพท์': c.contact_number || '-',
+          'กลุ่มอาการ': categorizeComplaint(c.chief_complaint, c.assessment),
           'อาการสำคัญ': c.chief_complaint,
           'การประเมินสภาพ': c.assessment,
           'การรักษา/ปฐมพยาบาล': c.treatment,
@@ -1249,7 +1276,6 @@
       modal.style.display = 'none';
     }
 
-    // ฟังก์ชันล็อกอินที่รองรับ Error handling แบบละเอียด
     async function submitPinAuth() {
       const pin = document.getElementById('inputPin').value.trim();
       if (!pin) return;
